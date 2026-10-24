@@ -9,6 +9,7 @@ import {
   sanitizeTransactionsArray,
   sanitizeBudget,
   sanitizeGoal,
+  validateBackupData,
   migrateLegacyStorage
 } from '../utils/storage';
 import {
@@ -49,6 +50,7 @@ export function FinanceProvider({ children }) {
   // 3. Application Settings & Preferences
   const [settings, setSettings] = useState(() => {
     return safeGet(STORAGE_KEYS.SETTINGS, {
+      displayName: 'Sai',
       currency: 'INR',
       activeMonth: '2026-10',
       notificationThreshold: 0.85
@@ -311,6 +313,31 @@ export function FinanceProvider({ children }) {
     }
   }, []);
 
+  /**
+   * Updates application preferences and settings.
+   * @param {object} partialSettings
+   */
+  const updateSettings = useCallback((partialSettings) => {
+    if (partialSettings && typeof partialSettings === 'object') {
+      setSettings((prev) => ({
+        ...prev,
+        ...partialSettings,
+        currency: 'INR' // Fixed to INR for this edition
+      }));
+    }
+  }, []);
+
+  /**
+   * Updates user display name.
+   * @param {string} name
+   */
+  const updateDisplayName = useCallback((name) => {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (trimmed) {
+      setSettings((prev) => ({ ...prev, displayName: trimmed }));
+    }
+  }, []);
+
   // 10. Sample Mode & State Switching
   const switchToSampleMode = useCallback(() => {
     setActiveMode('sample');
@@ -434,34 +461,27 @@ export function FinanceProvider({ children }) {
 
   const importDataJSON = useCallback((jsonData) => {
     try {
-      if (!jsonData || typeof jsonData !== 'object') {
-        throw new Error('Invalid JSON format: Expected root object.');
+      const validation = validateBackupData(jsonData);
+      if (!validation.valid) {
+        return { success: false, error: validation.error };
       }
 
-      if (Array.isArray(jsonData.userTransactions)) {
-        setUserTransactions(sanitizeTransactionsArray(jsonData.userTransactions));
-      } else if (Array.isArray(jsonData.transactions)) {
-        setUserTransactions(sanitizeTransactionsArray(jsonData.transactions));
-      }
+      const { validTxns, validBudgets, validGoals, settings: importedSettings } = validation.preview;
 
-      if (Array.isArray(jsonData.userBudgets)) {
-        setUserBudgets(jsonData.userBudgets.map(sanitizeBudget).filter(Boolean));
-      } else if (Array.isArray(jsonData.budgets)) {
-        setUserBudgets(jsonData.budgets.map(sanitizeBudget).filter(Boolean));
-      }
+      setUserTransactions(validTxns);
+      setUserBudgets(validBudgets);
+      setUserGoals(validGoals);
 
-      if (Array.isArray(jsonData.userGoals)) {
-        setUserGoals(jsonData.userGoals.map(sanitizeGoal).filter(Boolean));
-      } else if (Array.isArray(jsonData.goals)) {
-        setUserGoals(jsonData.goals.map(sanitizeGoal).filter(Boolean));
-      }
-
-      if (jsonData.settings && typeof jsonData.settings === 'object') {
-        setSettings((prev) => ({ ...prev, ...jsonData.settings }));
+      if (importedSettings && typeof importedSettings === 'object') {
+        setSettings((prev) => ({
+          ...prev,
+          ...importedSettings,
+          currency: 'INR' // Locked to INR for hackathon MVP
+        }));
       }
 
       setActiveMode('personal');
-      return { success: true };
+      return { success: true, preview: validation.preview };
     } catch (err) {
       console.error('[SpendSense] Error restoring backup:', err);
       return { success: false, error: err.message };
@@ -483,8 +503,11 @@ export function FinanceProvider({ children }) {
     // Settings & Filtering
     settings,
     setSettings,
+    updateSettings,
+    updateDisplayName,
     activeMonth,
     setActiveMonth,
+    validateBackupData,
 
     // Current Active Collections
     transactions,

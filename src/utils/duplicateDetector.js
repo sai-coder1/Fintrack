@@ -55,8 +55,11 @@ export function detectBatchDuplicates(candidateRows, existingTransactions = []) 
   const existingHashMap = new Map();
   (existingTransactions || []).forEach((t) => {
     if (!t) return;
-    const hash = t.hash || generateTransactionHash(t);
-    existingHashMap.set(hash, t);
+    const computedHash = generateTransactionHash(t);
+    existingHashMap.set(computedHash, t);
+    if (t.hash) {
+      existingHashMap.set(t.hash, t);
+    }
   });
 
   // Track seen hashes within the current file batch

@@ -210,3 +210,63 @@ export function migrateLegacyStorage() {
     console.warn('[SpendSense Migration] Notice: migration completed or skipped.', err);
   }
 }
+
+/**
+ * Validates a parsed backup payload structure before restoring.
+ * Checks that it is an object and contains recognizable SpendSense collections.
+ *
+ * @param {any} jsonData - Parsed JSON content
+ * @returns {{ valid: boolean, preview?: object, error?: string }}
+ */
+export function validateBackupData(jsonData) {
+  if (!jsonData || typeof jsonData !== 'object' || Array.isArray(jsonData)) {
+    return {
+      valid: false,
+      error: 'Invalid backup format: The file must contain a valid JSON root object.'
+    };
+  }
+
+  // Acceptable keys in SpendSense schema (supports flat or nested .data root)
+  const rawTxns = jsonData.userTransactions || jsonData.transactions || jsonData.data?.userTransactions || jsonData.data?.transactions;
+  const rawBudgets = jsonData.userBudgets || jsonData.budgets || jsonData.data?.userBudgets || jsonData.data?.budgets;
+  const rawGoals = jsonData.userGoals || jsonData.goals || jsonData.data?.userGoals || jsonData.data?.goals;
+  const rawSettings = jsonData.settings || jsonData.data?.settings;
+
+  const hasTxns = Array.isArray(rawTxns);
+  const hasBudgets = Array.isArray(rawBudgets);
+  const hasGoals = Array.isArray(rawGoals);
+  const hasSettings = rawSettings && typeof rawSettings === 'object';
+
+  if (!hasTxns && !hasBudgets && !hasGoals && !hasSettings) {
+    return {
+      valid: false,
+      error: 'Unrecognized backup structure: File does not contain any SpendSense transactions, budgets, goals, or settings.'
+    };
+  }
+
+  const validTxns = hasTxns ? sanitizeTransactionsArray(rawTxns) : [];
+  const validBudgets = hasBudgets ? rawBudgets.map(sanitizeBudget).filter(Boolean) : [];
+  const validGoals = hasGoals ? rawGoals.map(sanitizeGoal).filter(Boolean) : [];
+
+  const displayName =
+    hasSettings && typeof rawSettings.displayName === 'string' && rawSettings.displayName.trim()
+      ? rawSettings.displayName.trim()
+      : 'Friend';
+
+  return {
+    valid: true,
+    preview: {
+      app: jsonData.app || 'SpendSense',
+      version: jsonData.version || STORAGE_VERSION,
+      exportedAt: jsonData.exportedAt || null,
+      transactionCount: validTxns.length,
+      budgetCount: validBudgets.length,
+      goalCount: validGoals.length,
+      displayName,
+      validTxns,
+      validBudgets,
+      validGoals,
+      settings: hasSettings ? rawSettings : { displayName }
+    }
+  };
+}

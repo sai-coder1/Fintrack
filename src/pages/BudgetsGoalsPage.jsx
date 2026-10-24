@@ -58,6 +58,24 @@ export function BudgetsGoalsPage() {
     setCurrentPage
   } = useFinance();
 
+  // 0. Dynamic Month Options merged with preset months
+  const allAvailableMonths = useMemo(() => {
+    const map = new Map();
+    AVAILABLE_MONTHS.forEach((m) => map.set(m.value, m.label));
+    (transactions || []).forEach((t) => {
+      if (t?.date && t.date.length >= 7) {
+        const mKey = t.date.substring(0, 7);
+        if (!map.has(mKey)) {
+          const [y, m] = mKey.split('-');
+          const d = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+          const label = d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+          map.set(mKey, label);
+        }
+      }
+    });
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+  }, [transactions]);
+
   // 1. Alert Panel Filtering & Expansion State
   const [alertFilter, setAlertFilter] = useState('all'); // 'all' | 'danger' | 'warning' | 'goals'
   const [expandedAlerts, setExpandedAlerts] = useState({});
@@ -310,7 +328,7 @@ export function BudgetsGoalsPage() {
               onChange={(e) => setActiveMonth(e.target.value)}
               style={{ padding: '3px 8px', fontSize: 'var(--text-xs)', border: 'none', background: 'transparent', fontWeight: 600, cursor: 'pointer' }}
             >
-              {AVAILABLE_MONTHS.map((m) => (
+              {allAvailableMonths.map((m) => (
                 <option key={m.value} value={m.value}>
                   {m.label}
                 </option>

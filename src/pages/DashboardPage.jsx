@@ -42,6 +42,7 @@ export function DashboardPage() {
     budgets,
     activeMonth,
     alerts = [],
+    settings,
     totalIncome,
     totalExpenses,
     netBalance,
@@ -53,12 +54,29 @@ export function DashboardPage() {
     openAddTxnModal
   } = useFinance();
 
-  // Prepare cash flow data for chart (group by day in current month)
+  // Prepare cash flow data for chart (group by day in current active month)
   const chartData = React.useMemo(() => {
+    const [yearStr, monthStr] = (activeMonth || '2026-10').split('-');
+    const year = parseInt(yearStr, 10) || 2026;
+    const month = parseInt(monthStr, 10) || 10;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthAbbr = monthNames[month - 1] || 'Oct';
+
+    // Find latest day with transaction activity or baseline 24
+    let maxDay = 24;
+    monthTransactions.forEach((t) => {
+      if (t.date && t.date.startsWith(`${yearStr}-${monthStr}`)) {
+        const d = parseInt(t.date.split('-')[2], 10);
+        if (d > maxDay) maxDay = Math.min(d, daysInMonth);
+      }
+    });
+
     const dayMap = {};
-    for (let d = 1; d <= 24; d++) {
+    for (let d = 1; d <= maxDay; d++) {
       const dayStr = d < 10 ? `0${d}` : `${d}`;
-      dayMap[`2026-10-${dayStr}`] = { date: `${d} Oct`, income: 0, expense: 0, net: 0 };
+      const dateKey = `${yearStr}-${monthStr}-${dayStr}`;
+      dayMap[dateKey] = { date: `${d} ${monthAbbr}`, income: 0, expense: 0, net: 0 };
     }
 
     monthTransactions.forEach((t) => {
@@ -76,7 +94,7 @@ export function DashboardPage() {
         runningBalance: Math.round(runningBalance)
       };
     });
-  }, [monthTransactions]);
+  }, [monthTransactions, activeMonth]);
 
   // Top 4 categories for Donut chart
   const pieData = React.useMemo(() => {
@@ -100,10 +118,10 @@ export function DashboardPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 style={{ fontSize: 'var(--text-2xl)', marginBottom: '4px' }}>
-            October 2026 Financial Overview
+            Welcome back, {settings?.displayName?.trim() || 'Sai'} 👋
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', margin: 0 }}>
-            Track daily cash flow, anticipated month-end balance, and category limits.
+            October 2026 Financial Overview &mdash; Track daily cash flow, anticipated month-end balance, and category limits.
           </p>
         </div>
         <div className="flex items-center gap-2">

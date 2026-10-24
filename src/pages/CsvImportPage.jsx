@@ -280,7 +280,7 @@ export function CsvImportPage() {
       skipped: skippedCount
     });
 
-    setCurrentStep(5);
+    setCurrentStep(4);
   };
 
   const handleResetWorkflow = () => {
@@ -351,8 +351,8 @@ export function CsvImportPage() {
             <span className="step-number">{currentStep > 3 ? <Check size={14} /> : '3'}</span>
             <span className="step-label">Preview &amp; Validate</span>
           </div>
-          <div className={`step-node ${currentStep === 5 ? 'completed' : ''}`}>
-            <span className="step-number">{currentStep === 5 ? <Check size={14} /> : '4'}</span>
+          <div className={`step-node ${currentStep === 4 ? 'completed' : ''}`}>
+            <span className="step-number">{currentStep === 4 ? <Check size={14} /> : '4'}</span>
             <span className="step-label">Import Complete</span>
           </div>
         </div>
@@ -857,8 +857,8 @@ export function CsvImportPage() {
         </Card>
       )}
 
-      {/* 6. Step 5: Import Complete Result State */}
-      {currentStep === 5 && importSummary && (
+      {/* 6. Step 4: Import Complete Result State */}
+      {currentStep === 4 && importSummary && (
         <Card>
           <div className="placeholder-card" style={{ border: 'none', margin: '1rem auto' }}>
             <div

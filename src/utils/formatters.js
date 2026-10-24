@@ -50,7 +50,7 @@ export function formatDate(dateString) {
  */
 export function formatPercentage(value, isFraction = false) {
   const numeric = typeof value === 'number' ? value : parseFloat(value);
-  if (isNaN(numeric)) return '0%';
+  if (isNaN(numeric) || !isFinite(numeric)) return '0%';
   const finalValue = isFraction ? numeric * 100 : numeric;
   return `${finalValue.toFixed(1)}%`;
 }
