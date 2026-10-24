@@ -1,0 +1,340 @@
+/**
+ * SpendSense — Initial Realistic INR Sample Data
+ * Provides sample transactions, monthly budgets, and savings goals for October 2026.
+ */
+
+export const SAMPLE_TRANSACTIONS = [
+  {
+    id: 'txn_001',
+    date: '2026-10-01',
+    description: 'Infosys Monthly Salary Credit',
+    amount: 72000.00,
+    type: 'income',
+    category: 'Salary & Income',
+    nature: 'income',
+    paymentMethod: 'Net Banking',
+    notes: 'Monthly regular paycheck',
+    source: 'sample',
+    hash: '2026-10-01_72000.00_salary'
+  },
+  {
+    id: 'txn_002',
+    date: '2026-10-02',
+    description: 'Apartment Rent Transfer',
+    amount: 18000.00,
+    type: 'expense',
+    category: 'Rent & Housing',
+    nature: 'need',
+    paymentMethod: 'UPI',
+    notes: 'October flat rent',
+    source: 'sample',
+    hash: '2026-10-02_18000.00_rent'
+  },
+  {
+    id: 'txn_003',
+    date: '2026-10-03',
+    description: 'Blinkit Instant Grocery Delivery',
+    amount: 1450.00,
+    type: 'expense',
+    category: 'Groceries & Household',
+    nature: 'need',
+    paymentMethod: 'UPI',
+    notes: 'Weekly pantry staples',
+    source: 'sample',
+    hash: '2026-10-03_1450.00_blinkit'
+  },
+  {
+    id: 'txn_004',
+    date: '2026-10-04',
+    description: 'Bescom Electricity Bill',
+    amount: 1680.00,
+    type: 'expense',
+    category: 'Bills & Utilities',
+    nature: 'need',
+    paymentMethod: 'Net Banking',
+    notes: 'September power charges',
+    source: 'sample',
+    hash: '2026-10-04_1680.00_electricity'
+  },
+  {
+    id: 'txn_005',
+    date: '2026-10-06',
+    description: 'Swiggy Gourmet Dinner',
+    amount: 840.00,
+    type: 'expense',
+    category: 'Food & Dining Out',
+    nature: 'want',
+    paymentMethod: 'UPI',
+    notes: 'Weekend dinner with flatmates',
+    source: 'sample',
+    hash: '2026-10-06_840.00_swiggy'
+  },
+  {
+    id: 'txn_006',
+    date: '2026-10-08',
+    description: 'Airtel Fiber Broadband',
+    amount: 1179.00,
+    type: 'expense',
+    category: 'Bills & Utilities',
+    nature: 'need',
+    paymentMethod: 'Credit Card',
+    notes: 'Home internet renewal',
+    source: 'sample',
+    hash: '2026-10-08_1179.00_airtel'
+  },
+  {
+    id: 'txn_007',
+    date: '2026-10-10',
+    description: 'Uber Ride to Tech Park',
+    amount: 380.00,
+    type: 'expense',
+    category: 'Transport & Commute',
+    nature: 'need',
+    paymentMethod: 'UPI',
+    notes: 'Client office visit',
+    source: 'sample',
+    hash: '2026-10-10_380.00_uber'
+  },
+  {
+    id: 'txn_008',
+    date: '2026-10-11',
+    description: 'Netflix Monthly Subscription',
+    amount: 649.00,
+    type: 'expense',
+    category: 'Entertainment & OTT',
+    nature: 'want',
+    paymentMethod: 'Credit Card',
+    notes: 'Standard 2-screen plan',
+    source: 'sample',
+    hash: '2026-10-11_649.00_netflix'
+  },
+  {
+    id: 'txn_009',
+    date: '2026-10-13',
+    description: 'Zepto Daily Provisions',
+    amount: 720.00,
+    type: 'expense',
+    category: 'Groceries & Household',
+    nature: 'need',
+    paymentMethod: 'UPI',
+    notes: 'Fresh dairy and fruits',
+    source: 'sample',
+    hash: '2026-10-13_720.00_zepto'
+  },
+  {
+    id: 'txn_010',
+    date: '2026-10-15',
+    description: 'Groww Mutual Fund SIP Auto-Debit',
+    amount: 7500.00,
+    type: 'expense',
+    category: 'Savings & Investments',
+    nature: 'investment',
+    paymentMethod: 'Net Banking',
+    notes: 'Nifty 50 Index Fund',
+    source: 'sample',
+    hash: '2026-10-15_7500.00_sip'
+  },
+  {
+    id: 'txn_011',
+    date: '2026-10-17',
+    description: 'Zomato Lunch Office Order',
+    amount: 320.00,
+    type: 'expense',
+    category: 'Food & Dining Out',
+    nature: 'want',
+    paymentMethod: 'UPI',
+    notes: 'Work lunch',
+    source: 'sample',
+    hash: '2026-10-17_320.00_zomato'
+  },
+  {
+    id: 'txn_012',
+    date: '2026-10-19',
+    description: 'HPCL Petrol Pump Fuel Refill',
+    amount: 1500.00,
+    type: 'expense',
+    category: 'Transport & Commute',
+    nature: 'need',
+    paymentMethod: 'Debit Card',
+    notes: 'Car tank fill',
+    source: 'sample',
+    hash: '2026-10-19_1500.00_fuel'
+  },
+  {
+    id: 'txn_013',
+    date: '2026-10-21',
+    description: 'Amazon Great Indian Sale - Headphones Cable & Stand',
+    amount: 1299.00,
+    type: 'expense',
+    category: 'Shopping & Discretionary',
+    nature: 'want',
+    paymentMethod: 'Credit Card',
+    notes: 'Desk accessories',
+    source: 'sample',
+    hash: '2026-10-21_1299.00_amazon'
+  },
+  {
+    id: 'txn_014',
+    date: '2026-10-23',
+    description: 'Freelance UI Design Milestone Payout',
+    amount: 15000.00,
+    type: 'income',
+    category: 'Salary & Income',
+    nature: 'income',
+    paymentMethod: 'UPI',
+    notes: 'Side project design consulting',
+    source: 'sample',
+    hash: '2026-10-23_15000.00_freelance'
+  },
+  // September 2026 Historical Benchmark Records
+  {
+    id: 'txn_sep_01',
+    date: '2026-09-01',
+    description: 'Infosys Monthly Salary Credit',
+    amount: 72000.00,
+    type: 'income',
+    category: 'Salary & Income',
+    nature: 'income',
+    paymentMethod: 'Net Banking',
+    notes: 'September regular paycheck',
+    source: 'sample',
+    hash: '2026-09-01_72000.00_salary'
+  },
+  {
+    id: 'txn_sep_02',
+    date: '2026-09-02',
+    description: 'Apartment Rent Transfer',
+    amount: 18000.00,
+    type: 'expense',
+    category: 'Rent & Housing',
+    nature: 'need',
+    paymentMethod: 'UPI',
+    notes: 'September flat rent',
+    source: 'sample',
+    hash: '2026-09-02_18000.00_rent'
+  },
+  {
+    id: 'txn_sep_03',
+    date: '2026-09-05',
+    description: 'BigBasket Monthly Grocery Delivery',
+    amount: 5200.00,
+    type: 'expense',
+    category: 'Groceries & Household',
+    nature: 'need',
+    paymentMethod: 'UPI',
+    notes: 'Pantry restocking',
+    source: 'sample',
+    hash: '2026-09-05_5200.00_bigbasket'
+  },
+  {
+    id: 'txn_sep_04',
+    date: '2026-09-08',
+    description: 'Bescom & Airtel Utilities Bill',
+    amount: 2850.00,
+    type: 'expense',
+    category: 'Bills & Utilities',
+    nature: 'need',
+    paymentMethod: 'Net Banking',
+    notes: 'Power and broadband',
+    source: 'sample',
+    hash: '2026-09-08_2850.00_bills'
+  },
+  {
+    id: 'txn_sep_05',
+    date: '2026-09-12',
+    description: 'Dining Out & Food Deliveries',
+    amount: 3800.00,
+    type: 'expense',
+    category: 'Food & Dining Out',
+    nature: 'want',
+    paymentMethod: 'UPI',
+    notes: 'Restaurants and Swiggy',
+    source: 'sample',
+    hash: '2026-09-12_3800.00_dining'
+  },
+  {
+    id: 'txn_sep_06',
+    date: '2026-09-15',
+    description: 'Groww Mutual Fund SIP Auto-Debit',
+    amount: 7500.00,
+    type: 'expense',
+    category: 'Savings & Investments',
+    nature: 'investment',
+    paymentMethod: 'Net Banking',
+    notes: 'Nifty 50 Index Fund',
+    source: 'sample',
+    hash: '2026-09-15_7500.00_sip'
+  },
+  {
+    id: 'txn_sep_07',
+    date: '2026-09-18',
+    description: 'Metro & Fuel Commute',
+    amount: 3100.00,
+    type: 'expense',
+    category: 'Transport & Commute',
+    nature: 'need',
+    paymentMethod: 'Debit Card',
+    notes: 'Office commute and fuel refill',
+    source: 'sample',
+    hash: '2026-09-18_3100.00_commute'
+  },
+  {
+    id: 'txn_sep_08',
+    date: '2026-09-22',
+    description: 'Amazon Autumn Festive Shopping',
+    amount: 3900.00,
+    type: 'expense',
+    category: 'Shopping & Discretionary',
+    nature: 'want',
+    paymentMethod: 'Credit Card',
+    notes: 'Apparel and essentials',
+    source: 'sample',
+    hash: '2026-09-22_3900.00_shopping'
+  },
+  {
+    id: 'txn_sep_09',
+    date: '2026-09-25',
+    description: 'PVR Cinema & Weekend Outing',
+    amount: 1450.00,
+    type: 'expense',
+    category: 'Entertainment & OTT',
+    nature: 'want',
+    paymentMethod: 'UPI',
+    notes: 'Movie tickets and snacks',
+    source: 'sample',
+    hash: '2026-09-25_1450.00_entertainment'
+  }
+];
+
+export const SAMPLE_BUDGETS = [
+  { id: 'bgt_01', category: 'Rent & Housing', allocatedAmount: 18000.00, month: '2026-10', alertThreshold: 0.90 },
+  { id: 'bgt_02', category: 'Groceries & Household', allocatedAmount: 6000.00, month: '2026-10', alertThreshold: 0.85 },
+  { id: 'bgt_03', category: 'Food & Dining Out', allocatedAmount: 4500.00, month: '2026-10', alertThreshold: 0.80 },
+  { id: 'bgt_04', category: 'Transport & Commute', allocatedAmount: 3500.00, month: '2026-10', alertThreshold: 0.85 },
+  { id: 'bgt_05', category: 'Bills & Utilities', allocatedAmount: 4000.00, month: '2026-10', alertThreshold: 0.90 },
+  { id: 'bgt_06', category: 'Shopping & Discretionary', allocatedAmount: 3000.00, month: '2026-10', alertThreshold: 0.80 },
+  { id: 'bgt_07', category: 'Entertainment & OTT', allocatedAmount: 1500.00, month: '2026-10', alertThreshold: 0.85 }
+];
+
+export const SAMPLE_GOALS = [
+  {
+    id: 'goal_01',
+    title: 'Emergency Safety Buffer',
+    targetAmount: 100000.00,
+    currentAmount: 42000.00,
+    monthlyAllocation: 7500.00,
+    targetDate: '2027-04-30',
+    color: '#059669',
+    notes: '3-4 months core living expense cushion'
+  },
+  {
+    id: 'goal_02',
+    title: 'New M4 MacBook Pro',
+    targetAmount: 140000.00,
+    currentAmount: 55000.00,
+    monthlyAllocation: 10000.00,
+    targetDate: '2027-02-28',
+    color: '#6366f1',
+    notes: 'Development and design work upgrade'
+  }
+];

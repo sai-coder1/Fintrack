@@ -1,0 +1,198 @@
+/* ==========================================================================
+   SpendSense — Design Tokens (tokens.css)
+   Option C: Indigo + Emerald — Premium AI-First Fintech Design System
+   ========================================================================== */
+
+:root {
+  /* Surface & Background Colors */
+  --bg-app: #f8fafc;            /* Main background: #F8FAFC */
+  --bg-surface: #ffffff;        /* Card background: #FFFFFF */
+  --bg-surface-hover: #f8fafc;
+  --bg-subtle: #f1f5f9;
+  --bg-subtle-hover: #e2e8f0;
+  --bg-muted: #e2e8f0;
+
+  /* Border Colors */
+  --border-subtle: #e2e8f0;     /* Borders: #E2E8F0 */
+  --border-default: #cbd5e1;
+  --border-hover: #94a3b8;
+  --border-focus: #4f46e5;      /* Interactive indigo focus */
+
+  /* Typography Colors (Deep Navy Scale) */
+  --text-primary: #0f172a;      /* Primary text: #0F172A */
+  --text-secondary: #64748b;    /* Secondary text: #64748B */
+  --text-muted: #64748b;        /* Hints, helper text, timestamps */
+  --text-subtle: #94a3b8;       /* Placeholders, disabled text */
+  --text-inverse: #ffffff;      /* Text on dark/primary backgrounds */
+
+  /* ------------------------------------------------------------------------
+     Option C Centralized Palette
+     ------------------------------------------------------------------------ */
+  /* Primary Indigo Scale */
+  --primary-indigo: #4338ca;     /* Primary indigo: #4338CA (brand identity, primary CTAs, active nav) */
+  --interactive-indigo: #4f46e5; /* Interactive indigo: #4F46E5 (AI insights, forecasts, buttons) */
+  --indigo-hover: #3730a3;       /* Indigo hover: #3730A3 */
+  --soft-indigo-bg: #e0e7ff;     /* Soft indigo background: #E0E7FF */
+
+  --indigo-50: #eef2ff;
+  --indigo-100: #e0e7ff;        /* Soft indigo background */
+  --indigo-200: #c7d2fe;
+  --indigo-300: #a5b4fc;
+  --indigo-400: #818cf8;
+  --indigo-500: #6366f1;
+  --indigo-600: #4f46e5;        /* Interactive indigo */
+  --indigo-700: #4338ca;        /* Primary indigo */
+  --indigo-800: #3730a3;        /* Indigo hover */
+  --indigo-900: #312e81;
+
+  /* Emerald / Positive Finance Scale */
+  --emerald-emerald: #059669;   /* Emerald / positive finance: #059669 */
+  --soft-emerald-bg: #d1fae5;   /* Soft emerald background: #D1FAE5 */
+
+  --emerald-50: #ecfdf5;
+  --emerald-100: #d1fae5;       /* Soft emerald background */
+  --emerald-200: #a7f3d0;
+  --emerald-300: #6ee7b7;
+  --emerald-400: #34d399;
+  --emerald-500: #10b981;
+  --emerald-600: #059669;       /* Emerald / positive finance */
+  --emerald-700: #047857;
+  --emerald-800: #065f46;
+  --emerald-900: #064e3b;
+
+  /* Amber / Budget Warning & Financial Risk Scale */
+  --warning-amber: #d97706;     /* Budget warning: #D97706 */
+  --soft-amber-bg: #fef3c7;
+
+  --amber-50: #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-200: #fde68a;
+  --amber-300: #fcd34d;
+  --amber-400: #fbbf24;
+  --amber-500: #f59e0b;
+  --amber-600: #d97706;        /* Budget warning */
+  --amber-700: #b45309;
+  --amber-800: #92400e;
+  --amber-900: #78350f;
+
+  /* Rose / Expense & Negative Cash Flow Scale */
+  --expense-rose: #e11d48;      /* Expense / negative: #E11D48 */
+  --soft-rose-bg: #ffe4e6;
+
+  --rose-50: #fff1f2;
+  --rose-100: #ffe4e6;
+  --rose-200: #fecdd3;
+  --rose-300: #fda4af;
+  --rose-400: #fb7185;
+  --rose-500: #f43f5e;
+  --rose-600: #e11d48;         /* Expense / negative */
+  --rose-700: #be123c;
+  --rose-800: #9f1239;
+  --rose-900: #881337;
+
+  /* Backward Compatibility Aliases for Teal (mapped to Indigo system) */
+  --teal-50: var(--indigo-50);
+  --teal-100: var(--indigo-100);
+  --teal-200: var(--indigo-200);
+  --teal-300: var(--indigo-300);
+  --teal-500: var(--interactive-indigo);
+  --teal-600: var(--primary-indigo);
+  --teal-700: var(--indigo-hover);
+  --teal-800: var(--indigo-900);
+  --teal-900: #1e1b4b;
+
+  /* Typography Families */
+  --font-heading: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Font Sizes */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.875rem;    /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.875rem;   /* 30px */
+  --text-4xl: 2.25rem;    /* 36px */
+
+  /* Spacing Scale */
+  --space-1: 0.25rem;     /* 4px */
+  --space-2: 0.5rem;      /* 8px */
+  --space-3: 0.75rem;     /* 12px */
+  --space-4: 1rem;        /* 16px */
+  --space-5: 1.25rem;     /* 20px */
+  --space-6: 1.5rem;      /* 24px */
+  --space-8: 2rem;        /* 32px */
+  --space-10: 2.5rem;     /* 40px */
+  --space-12: 3rem;       /* 48px */
+  --space-16: 4rem;       /* 64px */
+
+  /* Border Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Elevation & Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.06), 0 4px 6px -4px rgba(15, 23, 42, 0.02);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+
+  /* Transitions & Animation Timing */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Accessible Focus Rings */
+  --focus-ring: 0 0 0 3px rgba(79, 70, 229, 0.25);
+  --focus-ring-emerald: 0 0 0 3px rgba(5, 150, 105, 0.25);
+  --focus-ring-danger: 0 0 0 3px rgba(225, 29, 72, 0.25);
+
+  /* Layout Constants */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+  --header-height: 68px;
+  --max-content-width: 1400px;
+}
+
+/* Dark Theme Support (semantic dark tokens adhering to Option C) */
+[data-theme="dark"] {
+  --bg-app: #0b0f19;
+  --bg-surface: #111827;
+  --bg-surface-hover: #1f2937;
+  --bg-subtle: #1f2937;
+  --bg-subtle-hover: #374151;
+  --bg-muted: #374151;
+
+  --border-subtle: #1f2937;
+  --border-default: #374151;
+  --border-hover: #4b5563;
+  --border-focus: #818cf8;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-subtle: #4b5563;
+  --text-inverse: #ffffff;
+
+  --primary-indigo: #6366f1;
+  --interactive-indigo: #818cf8;
+  --indigo-hover: #4f46e5;
+  --soft-indigo-bg: rgba(99, 102, 241, 0.18);
+
+  --emerald-emerald: #10b981;
+  --soft-emerald-bg: rgba(16, 185, 129, 0.18);
+
+  --warning-amber: #f59e0b;
+  --soft-amber-bg: rgba(245, 158, 11, 0.18);
+
+  --expense-rose: #f43f5e;
+  --soft-rose-bg: rgba(244, 63, 94, 0.18);
+
+  --focus-ring: 0 0 0 3px rgba(99, 102, 241, 0.35);
+}
