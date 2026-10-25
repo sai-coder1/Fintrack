@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFinance } from '../hooks/useFinance';
 import { formatINR, formatPercentage } from '../utils/formatters';
 import {
@@ -9,7 +9,8 @@ import {
   calculateSavingsRate,
   aggregateSpendingByCategory,
   aggregateNeedsVsWants,
-  aggregateMonthlyTotals
+  aggregateMonthlyTotals,
+  roundINR
 } from '../utils/calculations.js';
 import { calculateMonthEndForecast } from '../utils/forecasting.js';
 import { Card } from '../components/common/Card';
@@ -32,7 +33,8 @@ import {
   Layers,
   ArrowRight,
   Info,
-  ShieldCheck
+  ShieldCheck,
+  Plus
 } from 'lucide-react';
 import {
   BarChart,
@@ -64,8 +66,66 @@ const CATEGORY_COLORS = [
   '#64748b'  // Slate
 ];
 
+/**
+ * Route-level Error Boundary to ensure unexpected render failures never produce a blank screen.
+ */
+class AnalyticsErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('AnalyticsPage caught runtime error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="card" style={{ padding: 'var(--space-6)', textAlign: 'center', margin: '2rem 0' }}>
+          <AlertTriangle size={36} style={{ color: 'var(--rose-600)', margin: '0 auto var(--space-3)' }} />
+          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, marginBottom: 'var(--space-2)' }}>
+            Unable to Display Financial Analytics
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)' }}>
+            {this.state.error?.message || 'An unexpected rendering error occurred.'}
+          </p>
+          <button
+            className="btn btn-primary"
+            onClick={() => this.setState({ hasError: false, error: null })}
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function AnalyticsPage() {
-  const { transactions, budgets, activeMonth: defaultMonth, setCurrentPage } = useFinance();
+  return (
+    <AnalyticsErrorBoundary>
+      <AnalyticsContent />
+    </AnalyticsErrorBoundary>
+  );
+}
+
+function AnalyticsContent() {
+  const {
+    transactions = [],
+    budgets = [],
+    activeMonth: defaultMonth,
+    setCurrentPage,
+    openAddTxnModal,
+    cloudTxnLoading,
+    cloudTxnError,
+    refetchCloudTransactions
+  } = useFinance();
 
   // Extract distinct available months from all transactions
   const availableMonths = useMemo(() => {
@@ -81,6 +141,13 @@ export function AnalyticsPage() {
 
   // Selected Filter Month: default to activeMonth or first available
   const [selectedMonth, setSelectedMonth] = useState(() => availableMonths[0] || '2026-10');
+
+  // Synchronize selectedMonth when availableMonths list changes (e.g. cloud sync completes)
+  useEffect(() => {
+    if (availableMonths.length > 0 && !availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(availableMonths[0]);
+    }
+  }, [availableMonths, selectedMonth]);
 
   // Multi-month comparison selector (secondary month to compare against)
   const previousMonthOption = useMemo(() => {
@@ -117,13 +184,14 @@ export function AnalyticsPage() {
 
   // Month-end forecast for selected month
   const forecast = useMemo(() => {
+    const target = selectedMonth || defaultMonth || '2026-10';
     return calculateMonthEndForecast({
       transactions,
       budgets,
-      targetMonth: selectedMonth,
-      asOfDate: `${selectedMonth}-24`
+      targetMonth: target,
+      asOfDate: `${target}-24`
     });
-  }, [transactions, budgets, selectedMonth]);
+  }, [transactions, budgets, selectedMonth, defaultMonth]);
 
   // Multi-Month Trends (Income vs Expenses vs Net across all distinct months)
   const monthlyTrendsData = useMemo(() => {
@@ -137,9 +205,12 @@ export function AnalyticsPage() {
       const rate = calculateSavingsRate(inc, exp);
 
       // Human-readable label (e.g. "Oct 2026")
-      const [y, m] = mKey.split('-');
+      const safeKey = mKey && typeof mKey === 'string' && mKey.includes('-') ? mKey : '2026-10';
+      const [y, m] = safeKey.split('-');
       const dateObj = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
-      const label = dateObj.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+      const label = !isNaN(dateObj.getTime())
+        ? dateObj.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+        : safeKey;
 
       return {
         monthKey: mKey,
@@ -161,15 +232,15 @@ export function AnalyticsPage() {
     const prevCatMap = new Map(prevCatSpending.map((c) => [c.category, c.amount]));
 
     // Top categories from current month
-    return categoryBreakdown.slice(0, 5).map((c) => {
+    return (categoryBreakdown || []).slice(0, 5).map((c) => {
       const prevAmt = prevCatMap.get(c.category) || 0;
       const diff = roundINR(c.amount - prevAmt);
       const pctDiff = prevAmt > 0 ? roundINR((diff / prevAmt) * 100) : null;
 
       return {
-        category: c.category.length > 16 ? `${c.category.slice(0, 14)}...` : c.category,
-        fullName: c.category,
-        currentMonthAmount: c.amount,
+        category: c.category && c.category.length > 16 ? `${c.category.slice(0, 14)}...` : (c.category || 'Other'),
+        fullName: c.category || 'Other',
+        currentMonthAmount: c.amount || 0,
         previousMonthAmount: prevAmt,
         difference: diff,
         percentDifference: pctDiff
@@ -182,7 +253,7 @@ export function AnalyticsPage() {
     const list = [];
 
     // Largest category
-    if (categoryBreakdown.length > 0) {
+    if (categoryBreakdown && categoryBreakdown.length > 0) {
       const topCat = categoryBreakdown[0];
       list.push({
         type: 'info',
@@ -193,14 +264,18 @@ export function AnalyticsPage() {
     // Month-over-month notable changes
     if (previousMonthOption && categoryComparisonData.length > 0) {
       const biggestMoMChange = [...categoryComparisonData]
-        .filter((c) => c.previousMonthAmount > 0)
+        .filter((c) => c && c.previousMonthAmount > 0)
         .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference))[0];
 
       if (biggestMoMChange) {
         const isUp = biggestMoMChange.difference > 0;
+        const pctDiff = biggestMoMChange.percentDifference;
+        const pctText = pctDiff !== null && !isNaN(pctDiff)
+          ? ` (${Math.abs(pctDiff)}%)`
+          : '';
         list.push({
           type: isUp ? 'warning' : 'success',
-          text: `Spending in "${biggestMoMChange.fullName}" ${isUp ? 'increased' : 'decreased'} by ${formatINR(Math.abs(biggestMoMChange.difference))} (${Math.abs(biggestMoMChange.percentDifference)}%) compared to ${previousMonthOption}.`
+          text: `Spending in "${biggestMoMChange.fullName}" ${isUp ? 'increased' : 'decreased'} by ${formatINR(Math.abs(biggestMoMChange.difference))}${pctText} compared to ${previousMonthOption}.`
         });
       }
     } else {
@@ -227,6 +302,33 @@ export function AnalyticsPage() {
 
     return list;
   }, [categoryBreakdown, categoryComparisonData, selectedMonth, previousMonthOption, monthIncome, monthSavingsRate, needsVsWants]);
+
+  // Loading state while initially fetching cloud data for authenticated user
+  if (cloudTxnLoading && (!transactions || transactions.length === 0)) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="card" style={{ padding: 'var(--space-8)', textAlign: 'center', margin: '2rem 0' }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              border: '3px solid var(--border-subtle)',
+              borderTopColor: 'var(--primary-indigo)',
+              borderRadius: '50%',
+              margin: '0 auto var(--space-4)',
+              animation: 'spin 1s linear infinite'
+            }}
+          />
+          <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+            Loading Financial Analytics...
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)', marginBottom: 0 }}>
+            Fetching transaction history and computing cashflow projections.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -261,6 +363,95 @@ export function AnalyticsPage() {
           </select>
         </div>
       </div>
+
+      {/* Cloud Sync Error Alert Banner (if Supabase query fails) */}
+      {cloudTxnError && (
+        <div
+          style={{
+            padding: 'var(--space-3) var(--space-4)',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'var(--rose-50)',
+            color: 'var(--rose-700)',
+            border: '1px solid var(--rose-200)',
+            fontSize: 'var(--text-xs)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 'var(--space-3)'
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+            <span>
+              Unable to sync cloud transaction records: {cloudTxnError?.message || String(cloudTxnError)}.
+            </span>
+          </div>
+          {refetchCloudTransactions && (
+            <button
+              className="btn btn-outline"
+              style={{
+                padding: '0.25rem 0.65rem',
+                fontSize: 'var(--text-xs)',
+                borderColor: 'var(--rose-300)',
+                color: 'var(--rose-700)'
+              }}
+              onClick={() => refetchCloudTransactions()}
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Empty Ledger Notice */}
+      {(!transactions || transactions.length === 0) && (
+        <div
+          style={{
+            padding: 'var(--space-4)',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-3)'
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <Info size={20} style={{ color: 'var(--primary-indigo)', flexShrink: 0 }} />
+            <div>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+                No transaction records found
+              </p>
+              <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+                Import a bank statement or record your first transaction to unlock live spending trends and month-end projections.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {setCurrentPage && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage('import')}
+              >
+                Import Statement
+              </Button>
+            )}
+            {openAddTxnModal && (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Plus}
+                onClick={openAddTxnModal}
+              >
+                Add Transaction
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 2. Primary Financial Position KPI Cards */}
       <div className="grid grid-cols-4">
