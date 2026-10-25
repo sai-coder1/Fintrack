@@ -105,6 +105,15 @@ export function SignUpPage() {
         return;
       }
 
+      // Check if user already exists:
+      // In Supabase Auth, when email confirmation is enabled, signing up with an already-registered
+      // email returns a user object with an empty identities array (identities: []) rather than throwing an error.
+      if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        setErrorMessage('An account with this email address already exists. Please sign in instead.');
+        setLoading(false);
+        return;
+      }
+
       // Check if email confirmation is required or if session was established immediately
       if (data?.session) {
         // Automatically logged in by Supabase

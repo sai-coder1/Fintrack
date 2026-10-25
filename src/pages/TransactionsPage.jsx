@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useFinance } from '../hooks/useFinance';
+import { useAuth } from '../hooks/useAuth';
 import { formatINR, formatDate } from '../utils/formatters';
 import { DEFAULT_CATEGORIES } from '../data/defaultCategories';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
+import { LocalStorageMigrationModal } from '../components/settings/LocalStorageMigrationModal';
+import { TransactionSourceBadge } from '../components/common/TransactionSourceBadge';
 import {
   Search,
   Filter,
@@ -13,6 +16,7 @@ import {
   Edit2,
   Trash2,
   FileSpreadsheet,
+  UploadCloud,
   ArrowUpDown,
   Layers,
   Sparkles,
@@ -25,23 +29,31 @@ import {
 export function TransactionsPage() {
   const {
     transactions,
+    userTransactions,
     isSampleMode,
     deleteTransaction,
     openAddTxnModal,
     switchToSampleMode,
     setCurrentPage
   } = useFinance();
+  const { user } = useAuth();
+
+  // LocalStorage Migration Modal State (Phase 5)
+  const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [monthFilter, setMonthFilter] = useState('all'); // 'all' | '2026-10' | etc.
   const [typeFilter, setTypeFilter] = useState('all');   // 'all' | 'expense' | 'income'
+  const [sourceFilter, setSourceFilter] = useState('all'); // 'all' | 'manual' | 'csv' | 'aa'
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [natureFilter, setNatureFilter] = useState('all'); // 'all' | 'need' | 'want' | 'investment'
   const [sortOrder, setSortOrder] = useState('date-desc'); // 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc' | 'desc-asc'
 
   // Delete Confirmation Modal State
   const [txnToDelete, setTxnToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   // Extract distinct available months from transactions
   const availableMonths = useMemo(() => {
@@ -72,13 +84,20 @@ export function TransactionsPage() {
       // Type match
       const matchType = typeFilter === 'all' || t.type === typeFilter;
 
+      // Source match (Phase B: Distinguish Manual, CSV, AA)
+      const matchSource =
+        sourceFilter === 'all' ||
+        (sourceFilter === 'aa' && (t.source === 'aa' || t.source === 'account_aggregator' || t.source === 'bank_sync')) ||
+        (sourceFilter === 'csv' && (t.source === 'csv' || t.source === 'csv_import')) ||
+        (sourceFilter === 'manual' && (!t.source || t.source === 'manual' || t.source === 'supabase'));
+
       // Category match
       const matchCategory = categoryFilter === 'all' || t.category === categoryFilter;
 
       // Nature match
       const matchNature = natureFilter === 'all' || t.nature === natureFilter;
 
-      return matchSearch && matchMonth && matchType && matchCategory && matchNature;
+      return matchSearch && matchMonth && matchType && matchSource && matchCategory && matchNature;
     }).sort((a, b) => {
       if (sortOrder === 'date-desc') return new Date(b.date || 0) - new Date(a.date || 0);
       if (sortOrder === 'date-asc') return new Date(a.date || 0) - new Date(b.date || 0);
@@ -87,7 +106,7 @@ export function TransactionsPage() {
       if (sortOrder === 'desc-asc') return (a.description || '').localeCompare(b.description || '');
       return 0;
     });
-  }, [transactions, searchTerm, monthFilter, typeFilter, categoryFilter, natureFilter, sortOrder]);
+  }, [transactions, searchTerm, monthFilter, typeFilter, sourceFilter, categoryFilter, natureFilter, sortOrder]);
 
   // Aggregated totals for the active filtered selection
   const filterStats = useMemo(() => {
@@ -106,10 +125,24 @@ export function TransactionsPage() {
     };
   }, [filteredTransactions]);
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (txnToDelete && txnToDelete.id) {
-      deleteTransaction(txnToDelete.id);
-      setTxnToDelete(null);
+      setIsDeleting(true);
+      setDeleteError(null);
+      try {
+        const result = await deleteTransaction(txnToDelete.id);
+        if (result && result.error) {
+          setDeleteError(result.error);
+          setIsDeleting(false);
+          return;
+        }
+        setTxnToDelete(null);
+        setDeleteError(null);
+      } catch (err) {
+        setDeleteError(err.message || 'Failed to delete transaction. Please try again.');
+      } finally {
+        setIsDeleting(false);
+      }
     }
   };
 
@@ -117,6 +150,7 @@ export function TransactionsPage() {
     Boolean(searchTerm) ||
     monthFilter !== 'all' ||
     typeFilter !== 'all' ||
+    sourceFilter !== 'all' ||
     categoryFilter !== 'all' ||
     natureFilter !== 'all';
 
@@ -124,6 +158,7 @@ export function TransactionsPage() {
     setSearchTerm('');
     setMonthFilter('all');
     setTypeFilter('all');
+    setSourceFilter('all');
     setCategoryFilter('all');
     setNatureFilter('all');
     setSortOrder('date-desc');
@@ -163,6 +198,39 @@ export function TransactionsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Local Storage Migration Banner (Phase 5) */}
+      {!isSampleMode && user && userTransactions?.length > 0 && (
+        <div
+          className="alert-card alert-card-info"
+          style={{
+            padding: 'var(--space-3) var(--space-4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-3)',
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)'
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <UploadCloud size={16} style={{ color: 'var(--primary-indigo)', flexShrink: 0 }} />
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-primary)' }}>
+              You have <strong>{userTransactions.length} local transaction{userTransactions.length === 1 ? '' : 's'}</strong> stored in this browser that {userTransactions.length === 1 ? 'is' : 'are'} not yet synced to your Supabase cloud ledger.
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={UploadCloud}
+            onClick={() => setIsMigrationModalOpen(true)}
+          >
+            Review &amp; Migrate ({userTransactions.length})
+          </Button>
+        </div>
+      )}
 
       {/* 2. Selection Metric Summary Bar */}
       <div
@@ -262,6 +330,20 @@ export function TransactionsPage() {
             <option value="income">Credits (Income)</option>
           </select>
 
+          {/* Source Filter (Phase B: Manual, CSV, AA) */}
+          <select
+            className="form-select"
+            style={{ width: 'auto', padding: '0.45rem 0.75rem', fontSize: 'var(--text-xs)' }}
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            aria-label="Filter by transaction source"
+          >
+            <option value="all">All Sources</option>
+            <option value="manual">Manual Entry</option>
+            <option value="csv">CSV Import</option>
+            <option value="aa">Account Aggregator</option>
+          </select>
+
           {/* Category Filter */}
           <select
             className="form-select"
@@ -340,10 +422,13 @@ export function TransactionsPage() {
                       {formatDate(t.date)}
                     </td>
                     <td>
-                      <div className="flex flex-col">
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {t.description}
-                        </span>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {t.description}
+                          </span>
+                          <TransactionSourceBadge source={t.source} short />
+                        </div>
                         {t.notes && (
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             {t.notes}
@@ -431,17 +516,37 @@ export function TransactionsPage() {
               // Empty State 2: Filter yielded 0 matches
               <tr>
                 <td colSpan={7} style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-                  <div className="flex flex-col items-center gap-2" style={{ maxWidth: 380, margin: '0 auto' }}>
-                    <h3 style={{ fontSize: 'var(--text-base)', color: 'var(--text-primary)', margin: 0 }}>
-                      No Matching Transactions
-                    </h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', margin: 0 }}>
-                      No records matched your active search or filter selection.
-                    </p>
-                    <Button variant="secondary" size="sm" onClick={resetAllFilters} style={{ marginTop: 'var(--space-2)' }}>
-                      Reset All Filters
-                    </Button>
-                  </div>
+                  {sourceFilter === 'aa' ? (
+                    <div className="flex flex-col items-center gap-2" style={{ maxWidth: 440, margin: '0 auto' }}>
+                      <Badge variant="indigo">Source: Account Aggregator</Badge>
+                      <h3 style={{ fontSize: 'var(--text-base)', color: 'var(--text-primary)', margin: 0 }}>
+                        No Account Aggregator Records Found
+                      </h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', margin: 0, lineHeight: 1.5 }}>
+                        Account Aggregator enables consent-based digital statement syncing directly from scheduled Indian banks. Connect your accounts in Settings to explore automated sync.
+                      </p>
+                      <div className="flex items-center gap-2" style={{ marginTop: 'var(--space-2)' }}>
+                        <Button variant="primary" size="sm" onClick={() => setCurrentPage('settings')}>
+                          Configure Bank Connections
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={resetAllFilters}>
+                          View All Records
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2" style={{ maxWidth: 380, margin: '0 auto' }}>
+                      <h3 style={{ fontSize: 'var(--text-base)', color: 'var(--text-primary)', margin: 0 }}>
+                        No Matching Transactions
+                      </h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)', margin: 0 }}>
+                        No records matched your active search or filter selection.
+                      </p>
+                      <Button variant="secondary" size="sm" onClick={resetAllFilters} style={{ marginTop: 'var(--space-2)' }}>
+                        Reset All Filters
+                      </Button>
+                    </div>
+                  )}
                 </td>
               </tr>
             )}
@@ -452,21 +557,48 @@ export function TransactionsPage() {
       {/* Accessible Delete Confirmation Modal */}
       <Modal
         isOpen={Boolean(txnToDelete)}
-        onClose={() => setTxnToDelete(null)}
+        onClose={() => {
+          if (!isDeleting) {
+            setTxnToDelete(null);
+            setDeleteError(null);
+          }
+        }}
         title="Confirm Deletion"
         subtitle="This action will permanently remove this entry from your ledger"
         maxWidth="440px"
         footer={
           <div className="flex items-center justify-end gap-3" style={{ width: '100%' }}>
-            <Button variant="secondary" onClick={() => setTxnToDelete(null)}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setTxnToDelete(null);
+                setDeleteError(null);
+              }}
+              disabled={isDeleting}
+            >
               Cancel
             </Button>
-            <Button variant="danger" icon={Trash2} onClick={confirmDelete}>
-              Delete Transaction
+            <Button
+              variant="danger"
+              icon={Trash2}
+              onClick={confirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Transaction'}
             </Button>
           </div>
         }
       >
+        {deleteError && (
+          <div className="alert-card alert-card-danger" style={{ padding: 'var(--space-2) var(--space-3)', marginBottom: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)' }}>
+              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--expense-rose)' }} />
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 500, color: 'var(--text-primary)' }}>
+                {deleteError}
+              </span>
+            </div>
+          </div>
+        )}
         {txnToDelete && (
           <div className="flex flex-col gap-3">
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', margin: 0 }}>
@@ -495,6 +627,12 @@ export function TransactionsPage() {
           </div>
         )}
       </Modal>
+
+      {/* Modal: Safe LocalStorage to Cloud Migration (Phase 5) */}
+      <LocalStorageMigrationModal
+        isOpen={isMigrationModalOpen}
+        onClose={() => setIsMigrationModalOpen(false)}
+      />
     </div>
   );
 }

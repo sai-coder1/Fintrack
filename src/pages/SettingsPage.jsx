@@ -1,16 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useFinance } from '../hooks/useFinance';
+import { useAuth } from '../hooks/useAuth';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { STORAGE_VERSION, validateBackupData } from '../utils/storage';
 import { formatDate } from '../utils/formatters';
+import { LocalStorageMigrationModal } from '../components/settings/LocalStorageMigrationModal';
+import { FinancialAccountsSection } from '../components/aa/FinancialAccountsSection';
 import {
   Settings,
   Database,
   Download,
   Upload,
+  UploadCloud,
   Trash2,
   RefreshCw,
   ShieldCheck,
@@ -55,24 +59,34 @@ export function SettingsPage() {
     setActiveMonth,
     setCurrentPage
   } = useFinance();
+  const { user, profile, updateProfileName, isConfigured } = useAuth();
 
-  // 1. User Preferences State
-  const [displayNameInput, setDisplayNameInput] = useState(settings?.displayName || 'Sai');
+  // 1. User Preferences State — compute active resolved name with profile & auth metadata priority
+  const activeResolvedName = profile?.full_name?.trim() ||
+    user?.user_metadata?.full_name?.trim() ||
+    (user?.email ? user.email.split('@')[0] : '') ||
+    settings?.displayName ||
+    '';
+
+  const [displayNameInput, setDisplayNameInput] = useState(activeResolvedName || 'Sai');
   const [prefSuccessMessage, setPrefSuccessMessage] = useState('');
 
   useEffect(() => {
-    if (settings?.displayName) {
-      setDisplayNameInput(settings.displayName);
+    if (activeResolvedName) {
+      setDisplayNameInput(activeResolvedName);
     }
-  }, [settings?.displayName]);
+  }, [activeResolvedName]);
 
-  const handleSavePreferences = (e) => {
+  const handleSavePreferences = async (e) => {
     e.preventDefault();
     const cleanName = displayNameInput.trim();
     if (!cleanName) return;
 
+    if (user && isConfigured && updateProfileName) {
+      await updateProfileName(cleanName);
+    }
     updateDisplayName(cleanName);
-    setPrefSuccessMessage(`Preferences updated! Your dashboard greeting is now set to "${cleanName}".`);
+    setPrefSuccessMessage(`Preferences updated! Your display name is now set to "${cleanName}".`);
     setTimeout(() => setPrefSuccessMessage(''), 4000);
   };
 
@@ -143,6 +157,9 @@ export function SettingsPage() {
   // 3. Destructive Wipe Confirmation Modal State
   const [isWipeModalOpen, setIsWipeModalOpen] = useState(false);
   const [wipeConfirmText, setWipeConfirmText] = useState('');
+
+  // 3b. LocalStorage Cloud Migration Modal State (Phase 5)
+  const [isMigrationModalOpen, setIsMigrationModalOpen] = useState(false);
 
   const executeWipe = () => {
     if (wipeConfirmText.trim().toLowerCase() === 'delete') {
@@ -420,6 +437,50 @@ export function SettingsPage() {
         </div>
       </Card>
 
+      {/* 3b. Supabase Cloud Migration (Phase 5) */}
+      <Card
+        title="Supabase Cloud Ledger Migration"
+        subtitle="Migrate existing browser localStorage transactions into your secure Supabase account"
+        action={
+          <Badge variant="indigo" icon={UploadCloud}>
+            Phase 5 Migration
+          </Badge>
+        }
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-4)'
+          }}
+        >
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
+                Browser Stored Transactions:
+              </span>
+              <Badge variant={userTransactions.length > 0 ? 'indigo' : 'neutral'}>
+                {userTransactions.length} local records
+              </Badge>
+            </div>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0, maxWidth: 540, lineHeight: 1.5 }}>
+              Preview eligible records, detect duplicates, and safely upload local transactions to PostgreSQL with Row Level Security. Local browser data is preserved intact.
+            </p>
+          </div>
+
+          <Button
+            variant="primary"
+            size="sm"
+            icon={UploadCloud}
+            onClick={() => setIsMigrationModalOpen(true)}
+          >
+            Review &amp; Migrate to Cloud ({userTransactions.length})
+          </Button>
+        </div>
+      </Card>
+
       {/* 4. Data Backup & Restore Center */}
       <div className="grid grid-cols-2">
         {/* Export JSON Backup */}
@@ -559,36 +620,8 @@ export function SettingsPage() {
         </div>
       </Card>
 
-      {/* 6. Future Integrations Roadmap (Account Aggregator) */}
-      <Card
-        title="Future Financial Integrations Roadmap"
-        subtitle="Planned architectural milestones for future releases of SpendSense"
-        action={
-          <Badge variant="indigo" icon={Network}>
-            Planned Future Architecture
-          </Badge>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
-            In future commercial releases, SpendSense plans to leverage the Reserve Bank of India (RBI) <strong>Account Aggregator (AA) framework</strong>. This will enable secure, consent-based, encrypted statement retrieval directly from Indian scheduled commercial banks (HDFC, ICICI, SBI, Axis) without manual CSV imports or credential sharing.
-          </p>
-
-          <div
-            style={{
-              padding: 'var(--space-3) var(--space-4)',
-              backgroundColor: 'var(--bg-surface-hover)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: '11px',
-              color: 'var(--text-muted)',
-              lineHeight: 1.5
-            }}
-          >
-            <strong style={{ color: 'var(--text-primary)' }}>Architectural Integrity Guarantee:</strong> Account Aggregator connectivity is a documented future capability. SpendSense does not include mock or fake &ldquo;Connect Bank&rdquo; buttons that mislead users before genuine RBI-compliant AA integration is certified.
-          </div>
-        </div>
-      </Card>
+      {/* 6. Account Aggregator Financial Connections (Phase B) */}
+      <FinancialAccountsSection />
 
       {/* 7. Destructive Zone: Clear Personal Data */}
       <div
@@ -779,6 +812,12 @@ export function SettingsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Modal: Safe LocalStorage to Cloud Migration (Phase 5) */}
+      <LocalStorageMigrationModal
+        isOpen={isMigrationModalOpen}
+        onClose={() => setIsMigrationModalOpen(false)}
+      />
     </div>
   );
 }

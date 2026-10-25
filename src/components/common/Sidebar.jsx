@@ -26,7 +26,12 @@ const NAV_ITEMS = [
 
 export function Sidebar({ isOpen, onClose }) {
   const { currentPage, setCurrentPage } = useFinance();
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
+
+  const displayName = profile?.full_name?.trim() ||
+    user?.user_metadata?.full_name?.trim() ||
+    (user?.email ? user.email.split('@')[0] : 'User');
+  const avatarLetter = (displayName.charAt(0) || 'U').toUpperCase();
 
   const handleNavClick = (pageId) => {
     setCurrentPage(pageId);
@@ -123,7 +128,7 @@ export function Sidebar({ isOpen, onClose }) {
                     fontWeight: 700
                   }}
                 >
-                  {(user.user_metadata?.full_name || user.email || 'U').charAt(0).toUpperCase()}
+                  {avatarLetter}
                 </div>
                 <div style={{ minWidth: 0, overflow: 'hidden' }}>
                   <div
@@ -136,7 +141,7 @@ export function Sidebar({ isOpen, onClose }) {
                       textOverflow: 'ellipsis'
                     }}
                   >
-                    {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                    {displayName}
                   </div>
                   <div
                     style={{

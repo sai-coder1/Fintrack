@@ -40,6 +40,8 @@ export function CsvImportPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [parseError, setParseError] = useState(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState(null);
 
   // File metadata
   const [fileMeta, setFileMeta] = useState(null);
@@ -244,13 +246,16 @@ export function CsvImportPage() {
   };
 
   // Confirm Import
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     const toImport = previewRows.filter((r) => r.selected && r.isValid);
 
     if (toImport.length === 0) {
       alert('No valid rows selected for import.');
       return;
     }
+
+    setIsImporting(true);
+    setImportError(null);
 
     // Prepare clean transactions for insertion
     const importPayload = toImport.map((r) => ({
@@ -265,22 +270,41 @@ export function CsvImportPage() {
       hash: r.hash
     }));
 
-    // Commit batch to FinanceContext
-    const countAdded = addTransactionsBatch(importPayload);
+    try {
+      // Commit batch to FinanceContext (handles Supabase cloud insert or local mode)
+      const result = await addTransactionsBatch(importPayload);
 
-    const duplicateCount = previewRows.filter((r) => r.isDuplicate).length;
-    const invalidCount = previewRows.filter((r) => !r.isValid).length;
-    const skippedCount = previewRows.length - countAdded;
+      const countAdded = typeof result === 'object' ? (result.imported ?? result.count ?? 0) : Number(result) || 0;
+      const failedCount = typeof result === 'object' ? (result.failed || 0) : 0;
+      const errorList = typeof result === 'object' && Array.isArray(result.errors) ? result.errors : [];
 
-    setImportSummary({
-      total: previewRows.length,
-      imported: countAdded,
-      duplicates: duplicateCount,
-      invalid: invalidCount,
-      skipped: skippedCount
-    });
+      if (countAdded === 0 && (failedCount > 0 || (result && result.error))) {
+        setImportError(result?.error || 'Failed to import transactions. Please check your network connection and session.');
+        setIsImporting(false);
+        return;
+      }
 
-    setCurrentStep(4);
+      const duplicateCount = previewRows.filter((r) => r.isDuplicate).length;
+      const invalidCount = previewRows.filter((r) => !r.isValid).length;
+      const skippedCount = previewRows.length - countAdded;
+
+      setImportSummary({
+        total: previewRows.length,
+        imported: countAdded,
+        duplicates: duplicateCount,
+        invalid: invalidCount,
+        skipped: skippedCount,
+        failed: failedCount,
+        errors: errorList
+      });
+
+      setCurrentStep(4);
+    } catch (err) {
+      console.error('[SpendSense] CSV import error:', err);
+      setImportError(err.message || 'An unexpected error occurred while importing transactions.');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleResetWorkflow = () => {
@@ -291,6 +315,8 @@ export function CsvImportPage() {
     setPreviewRows([]);
     setImportSummary(null);
     setParseError(null);
+    setIsImporting(false);
+    setImportError(null);
   };
 
   // Preview Filtered Rows
@@ -672,22 +698,39 @@ export function CsvImportPage() {
           }
           footer={
             <div className="flex items-center justify-between" style={{ width: '100%' }}>
-              <Button variant="secondary" size="sm" icon={ArrowLeft} onClick={() => setCurrentStep(2)}>
+              <Button variant="secondary" size="sm" icon={ArrowLeft} onClick={() => setCurrentStep(2)} disabled={isImporting}>
                 Back to Mapping
               </Button>
               <Button
                 variant="primary"
                 size="sm"
                 icon={CheckCircle2}
-                disabled={previewStats.selected === 0}
+                disabled={isImporting || previewStats.selected === 0}
                 onClick={handleConfirmImport}
               >
-                Confirm Import ({previewStats.selected} Transactions)
+                {isImporting ? 'Importing Transactions...' : `Confirm Import (${previewStats.selected} Transactions)`}
               </Button>
             </div>
           }
         >
           <div className="flex flex-col gap-4">
+            {importError && (
+              <div
+                style={{
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--rose-50)',
+                  color: 'var(--rose-700)',
+                  border: '1px solid var(--rose-200)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)'
+                }}
+              >
+                <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 500 }}>{importError}</span>
+              </div>
+            )}
             {/* Filter Pills & Bulk Select Actions */}
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2">
@@ -879,8 +922,11 @@ export function CsvImportPage() {
             </p>
 
             {/* Diagnostic breakdown tags */}
-            <div className="flex items-center gap-3" style={{ margin: 'var(--space-2) 0' }}>
+            <div className="flex items-center gap-3" style={{ margin: 'var(--space-2) 0', flexWrap: 'wrap', justifyContent: 'center' }}>
               <Badge variant="emerald">{importSummary.imported} Transactions Imported</Badge>
+              {importSummary.failed > 0 && (
+                <Badge variant="rose">{importSummary.failed} Failed</Badge>
+              )}
               {importSummary.duplicates > 0 && (
                 <Badge variant="amber">{importSummary.duplicates} Duplicates Skipped</Badge>
               )}
@@ -888,6 +934,24 @@ export function CsvImportPage() {
                 <Badge variant="neutral">{importSummary.invalid} Invalid Rows Ignored</Badge>
               )}
             </div>
+
+            {importSummary.failed > 0 && (
+              <div
+                style={{
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--amber-50)',
+                  color: 'var(--amber-800)',
+                  border: '1px solid var(--amber-200)',
+                  fontSize: 'var(--text-xs)',
+                  maxWidth: 520,
+                  margin: 'var(--space-2) auto',
+                  textAlign: 'left'
+                }}
+              >
+                <strong>Partial Import Notice:</strong> {importSummary.failed} row(s) could not be saved to Supabase. All {importSummary.imported} confirmed row(s) were successfully added to your cloud ledger.
+              </div>
+            )}
 
             <div className="flex items-center gap-3" style={{ marginTop: 'var(--space-2)' }}>
               <Button variant="primary" icon={Table} onClick={() => setCurrentPage('transactions')}>

@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { SAMPLE_TRANSACTIONS, SAMPLE_BUDGETS, SAMPLE_GOALS } from '../data/sampleData';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { toSupabaseTransactionRow, fromSupabaseTransactionRow } from '../utils/transactionAdapter';
+import { executeLocalTransactionsMigration } from '../utils/migrationService';
 import {
   STORAGE_KEYS,
   STORAGE_VERSION,
@@ -33,7 +36,7 @@ import { getPageFromPath, getPathFromPage } from '../utils/navigation';
 const FinanceContext = createContext(null);
 
 export function FinanceProvider({ children }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   // Run legacy storage migration once
   useEffect(() => {
@@ -118,8 +121,100 @@ export function FinanceProvider({ children }) {
     return Array.isArray(raw) ? raw.map(sanitizeGoal).filter(Boolean) : SAMPLE_GOALS;
   });
 
-  // 5. Active Collections (Read by current mode)
-  const transactions = isSampleMode ? sampleTransactions : userTransactions;
+  // 4b. Cloud Transaction Store for Authenticated Personal Mode (Phase 2)
+  const [cloudTransactions, setCloudTransactions] = useState([]);
+  const [cloudTxnStatus, setCloudTxnStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
+  const [cloudTxnError, setCloudTxnError] = useState(null);
+  const activeFetchIdRef = useRef(0);
+  const userTransactionsRef = useRef(userTransactions);
+  const userRef = useRef(user);
+
+  useEffect(() => {
+    userTransactionsRef.current = userTransactions;
+  }, [userTransactions]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  const fetchCloudTransactions = useCallback(async () => {
+    // Only fetch when in personal mode, user is authenticated, and Supabase is configured
+    if (isSampleMode || !user || !isSupabaseConfigured || !supabase) {
+      activeFetchIdRef.current++;
+      setCloudTransactions([]);
+      setCloudTxnStatus('idle');
+      setCloudTxnError(null);
+      return;
+    }
+
+    const fetchId = ++activeFetchIdRef.current;
+    setCloudTxnStatus('loading');
+    setCloudTxnError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('transaction_date', { ascending: false });
+
+      // Stale response guard: If another fetch was started, or user signed out/switched, discard result
+      if (fetchId !== activeFetchIdRef.current) return;
+
+      if (error) {
+        console.error('[SpendSense FinanceContext] Supabase fetch error:', error.message);
+        setCloudTxnError(error.message || 'Failed to fetch cloud transactions');
+        setCloudTxnStatus('error');
+        return;
+      }
+
+      // Build lookup of local transactions to preserve any custom nature or paymentMethod
+      const localMap = new Map();
+      (userTransactionsRef.current || []).forEach((t) => {
+        if (t.id) localMap.set(t.id, t);
+        if (t.hash) localMap.set(t.hash, t);
+      });
+
+      const converted = (data || []).map((row) => {
+        const localMatch = localMap.get(String(row.id)) || null;
+        return fromSupabaseTransactionRow(row, localMatch);
+      });
+
+      setCloudTransactions(converted);
+      setCloudTxnStatus('success');
+      setCloudTxnError(null);
+    } catch (err) {
+      if (fetchId !== activeFetchIdRef.current) return;
+      console.error('[SpendSense FinanceContext] Unexpected fetch error:', err);
+      setCloudTxnError(err.message || 'Network error while fetching cloud transactions');
+      setCloudTxnStatus('error');
+    }
+  }, [user?.id, isSampleMode]);
+
+  useEffect(() => {
+    // When signed out or switching to sample mode, immediately purge cloud transactions from memory
+    if (!user || isSampleMode) {
+      activeFetchIdRef.current++;
+      setCloudTransactions([]);
+      setCloudTxnStatus('idle');
+      setCloudTxnError(null);
+      return;
+    }
+
+    // Initiate fetch for authenticated user in personal mode
+    fetchCloudTransactions();
+
+    return () => {
+      // Invalidate in-flight fetch on unmount or user change
+      activeFetchIdRef.current++;
+    };
+  }, [user?.id, isSampleMode, fetchCloudTransactions]);
+
+  // 5. Active Collections (Read by current mode & auth state)
+  const transactions = isSampleMode
+    ? sampleTransactions
+    : (user && cloudTxnStatus === 'success')
+      ? cloudTransactions
+      : userTransactions;
   const budgets = isSampleMode ? sampleBudgets : userBudgets;
   const goals = isSampleMode ? sampleGoals : userGoals;
 
@@ -132,16 +227,28 @@ export function FinanceProvider({ children }) {
     safeSet(STORAGE_KEYS.SETTINGS, settings);
   }, [settings]);
 
-  // Sync Supabase Auth user full name into settings if available
+  // Sync authenticated user / profile full name into settings
   useEffect(() => {
-    const fullName = user?.user_metadata?.full_name?.trim();
-    if (fullName && (!settings.displayName || settings.displayName === 'Sai')) {
-      setSettings((prev) => ({
-        ...prev,
-        displayName: fullName
-      }));
+    if (!user) {
+      // When signed out, reset personal display name so it doesn't linger across user accounts
+      setSettings((prev) => {
+        if (!prev.displayName || prev.displayName === 'Sai') return prev;
+        return { ...prev, displayName: '' };
+      });
+      return;
     }
-  }, [user]);
+
+    const resolvedName = profile?.full_name?.trim() ||
+      user?.user_metadata?.full_name?.trim() ||
+      (user?.email ? user.email.split('@')[0] : '');
+
+    if (resolvedName) {
+      setSettings((prev) => {
+        if (prev.displayName === resolvedName) return prev;
+        return { ...prev, displayName: resolvedName };
+      });
+    }
+  }, [user, profile]);
 
   useEffect(() => {
     safeSet(STORAGE_KEYS.USER_TRANSACTIONS, userTransactions);
@@ -168,59 +275,499 @@ export function FinanceProvider({ children }) {
   }, [sampleGoals]);
 
   // 7. Transaction Operations (Add, Edit, Delete)
-  const addTransaction = useCallback((rawTxn) => {
+  const addTransaction = useCallback(async (rawTxn) => {
     const sanitized = sanitizeTransaction(rawTxn);
-    if (!sanitized) return null;
+    if (!sanitized) {
+      return { data: null, error: 'Invalid transaction data.' };
+    }
 
+    // A. Demo Mode: Local memory only, 100% isolated
     if (isSampleMode) {
       setSampleTransactions((prev) => [sanitized, ...prev]);
-    } else {
-      setUserTransactions((prev) => [sanitized, ...prev]);
+      return { data: sanitized, error: null };
     }
-    return sanitized;
-  }, [isSampleMode]);
 
-  const addTransactionsBatch = useCallback((rawTxnsList) => {
-    if (!Array.isArray(rawTxnsList) || rawTxnsList.length === 0) return 0;
+    // B. Purely Local / Offline Mode (when Supabase credentials are not configured)
+    if (!isSupabaseConfigured || !supabase) {
+      setUserTransactions((prev) => [sanitized, ...prev]);
+      return { data: sanitized, error: null };
+    }
+
+    // C. Authenticated Personal Mode: Resolve current user session
+    let activeUser = userRef.current || user;
+    if (!activeUser?.id) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        activeUser = sessionData?.session?.user || null;
+      } catch (authErr) {
+        console.error('[SpendSense FinanceContext] Error checking session:', authErr);
+      }
+    }
+
+    if (!activeUser?.id) {
+      return {
+        data: null,
+        error: 'Active user session not found. Please verify you are signed in to save transactions to your cloud ledger.'
+      };
+    }
+
+    const activeUserId = activeUser.id;
+
+    try {
+      const dbRowPayload = toSupabaseTransactionRow(sanitized, activeUserId);
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert(dbRowPayload)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[SpendSense] Supabase insert error:', error.message);
+        return { data: null, error: error.message || 'Failed to save transaction to cloud.' };
+      }
+
+      if (!data) {
+        return { data: null, error: 'No confirmation data returned from database.' };
+      }
+
+      // Guard: prevent stale write if user changed/signed out during in-flight call
+      const currentLatestUser = userRef.current || user;
+      if (currentLatestUser && currentLatestUser.id !== activeUserId) {
+        return { data: null, error: 'User session changed during transaction save.' };
+      }
+
+      // Convert returned database row (with Supabase native UUID) to frontend model
+      const createdTxn = fromSupabaseTransactionRow(data, sanitized);
+
+      // Confirmed update: update cloud transactions in memory
+      setCloudTransactions((prev) => [createdTxn, ...prev]);
+      setCloudTxnStatus('success');
+
+      return { data: createdTxn, error: null };
+    } catch (err) {
+      console.error('[SpendSense] Unexpected error during transaction creation:', err);
+      return { data: null, error: err.message || 'Network error while creating transaction.' };
+    }
+  }, [isSampleMode, user]);
+
+  const addTransactionsBatch = useCallback(async (rawTxnsList) => {
+    if (!Array.isArray(rawTxnsList) || rawTxnsList.length === 0) {
+      return { success: true, count: 0, imported: 0, failed: 0, errors: [] };
+    }
+
     const sanitizedList = rawTxnsList
       .map(sanitizeTransaction)
       .filter(Boolean);
 
-    if (sanitizedList.length === 0) return 0;
+    if (sanitizedList.length === 0) {
+      return { success: false, error: 'No valid transactions found in batch.', count: 0, imported: 0, failed: rawTxnsList.length, errors: [] };
+    }
 
+    // A. Demo Mode: Local memory only, 100% isolated
     if (isSampleMode) {
       setSampleTransactions((prev) => [...sanitizedList, ...prev]);
-    } else {
+      return { success: true, count: sanitizedList.length, imported: sanitizedList.length, failed: 0, errors: [] };
+    }
+
+    // B. Purely Local / Offline Mode (when Supabase credentials are not configured)
+    if (!isSupabaseConfigured || !supabase) {
       setUserTransactions((prev) => [...sanitizedList, ...prev]);
+      return { success: true, count: sanitizedList.length, imported: sanitizedList.length, failed: 0, errors: [] };
     }
-    return sanitizedList.length;
-  }, [isSampleMode]);
 
-  const updateTransaction = useCallback((id, updatedFields) => {
-    const updater = (prevList) =>
-      prevList.map((t) => {
-        if (t.id === id) {
-          const merged = { ...t, ...updatedFields };
-          return sanitizeTransaction(merged) || t;
+    // C. Authenticated Personal Mode: Resolve current active user session
+    let activeUser = userRef.current || user;
+    if (!activeUser?.id) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        activeUser = sessionData?.session?.user || null;
+      } catch (authErr) {
+        console.error('[SpendSense FinanceContext] Error checking session for batch import:', authErr);
+      }
+    }
+
+    if (!activeUser?.id) {
+      return {
+        success: false,
+        error: 'Active user session not found. Please verify you are signed in to import transactions to your cloud ledger.',
+        count: 0,
+        imported: 0,
+        failed: sanitizedList.length,
+        errors: [{ message: 'User session not found' }]
+      };
+    }
+
+    const activeUserId = activeUser.id;
+
+    // Convert candidate transactions to Supabase rows
+    const validRowsToInsert = [];
+    const clientConversionErrors = [];
+
+    sanitizedList.forEach((t, idx) => {
+      try {
+        const rowPayload = toSupabaseTransactionRow(t, activeUserId);
+        validRowsToInsert.push({ payload: rowPayload, clientTxn: t });
+      } catch (convErr) {
+        clientConversionErrors.push({
+          index: idx,
+          description: t.description,
+          error: convErr.message
+        });
+      }
+    });
+
+    if (validRowsToInsert.length === 0) {
+      return {
+        success: false,
+        error: 'All transactions failed validation before database insertion.',
+        count: 0,
+        imported: 0,
+        failed: sanitizedList.length,
+        errors: clientConversionErrors
+      };
+    }
+
+    const confirmedCreatedTxns = [];
+    const insertFailures = [...clientConversionErrors];
+
+    try {
+      // Attempt 1: Fast atomic bulk insert
+      const rowsPayload = validRowsToInsert.map((item) => item.payload);
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert(rowsPayload)
+        .select();
+
+      if (!error && Array.isArray(data)) {
+        // Full batch success
+        data.forEach((row, i) => {
+          const matchingClientTxn = validRowsToInsert[i]?.clientTxn || null;
+          confirmedCreatedTxns.push(fromSupabaseTransactionRow(row, matchingClientTxn));
+        });
+      } else {
+        // Attempt 2: Row-by-row fallback for partial failure isolation
+        console.warn('[SpendSense Batch Import] Bulk insert encountered issue, falling back to per-row insert for error isolation:', error?.message);
+
+        for (const item of validRowsToInsert) {
+          try {
+            const { data: singleData, error: singleError } = await supabase
+              .from('transactions')
+              .insert(item.payload)
+              .select()
+              .single();
+
+            if (singleError || !singleData) {
+              insertFailures.push({
+                description: item.clientTxn.description,
+                error: singleError?.message || 'Database insert failed'
+              });
+            } else {
+              confirmedCreatedTxns.push(fromSupabaseTransactionRow(singleData, item.clientTxn));
+            }
+          } catch (rowErr) {
+            insertFailures.push({
+              description: item.clientTxn.description,
+              error: rowErr.message || 'Network error on row insert'
+            });
+          }
         }
-        return t;
-      });
+      }
+    } catch (batchErr) {
+      console.error('[SpendSense] Batch import network error:', batchErr);
+      return {
+        success: false,
+        error: batchErr.message || 'Network error during batch transaction import.',
+        count: 0,
+        imported: 0,
+        failed: sanitizedList.length,
+        errors: [{ message: batchErr.message }]
+      };
+    }
 
+    // Stale guard: check if user switched during in-flight network calls
+    const currentLatestUser = userRef.current || user;
+    if (currentLatestUser && currentLatestUser.id !== activeUserId) {
+      return {
+        success: false,
+        error: 'User session changed during batch transaction import.',
+        count: 0,
+        imported: 0,
+        failed: sanitizedList.length,
+        errors: [{ message: 'User session changed during import' }]
+      };
+    }
+
+    // Only update in-memory state with transactions confirmed by Supabase
+    if (confirmedCreatedTxns.length > 0) {
+      setCloudTransactions((prev) => [...confirmedCreatedTxns, ...prev]);
+      setCloudTxnStatus('success');
+    }
+
+    return {
+      success: confirmedCreatedTxns.length > 0,
+      count: confirmedCreatedTxns.length,
+      imported: confirmedCreatedTxns.length,
+      failed: insertFailures.length,
+      errors: insertFailures,
+      data: confirmedCreatedTxns
+    };
+  }, [isSampleMode, user]);
+
+  /**
+   * Phase 5: Safely migrates existing localStorage transactions to Supabase.
+   * Enforces authenticated personal mode, never alters or deletes source localStorage,
+   * updates in-memory cloud transactions upon confirmation.
+   */
+  const migrateLocalStorageTransactions = useCallback(async (candidateTxnsList) => {
+    // 1. Availability Guards
     if (isSampleMode) {
+      return {
+        success: false,
+        error: 'Demo sample mode transactions cannot be migrated to Supabase. Please switch to Personal Mode.',
+        totalAttempted: 0,
+        migratedCount: 0,
+        failedCount: 0,
+        skippedCount: 0,
+        confirmedTxns: [],
+        errors: [{ message: 'Demo mode cannot migrate' }]
+      };
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
+      return {
+        success: false,
+        error: 'Supabase credentials are not configured. Cloud migration is unavailable.',
+        totalAttempted: 0,
+        migratedCount: 0,
+        failedCount: 0,
+        skippedCount: 0,
+        confirmedTxns: [],
+        errors: [{ message: 'Supabase unconfigured' }]
+      };
+    }
+
+    // 2. Resolve authenticated user session
+    let activeUser = userRef.current || user;
+    if (!activeUser?.id) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        activeUser = sessionData?.session?.user || null;
+      } catch (authErr) {
+        console.error('[SpendSense FinanceContext] Error checking session for migration:', authErr);
+      }
+    }
+
+    if (!activeUser?.id) {
+      return {
+        success: false,
+        error: 'Active authenticated session required. Please sign in to migrate your transactions.',
+        totalAttempted: 0,
+        migratedCount: 0,
+        failedCount: 0,
+        skippedCount: 0,
+        confirmedTxns: [],
+        errors: [{ message: 'User not authenticated' }]
+      };
+    }
+
+    const activeUserId = activeUser.id;
+
+    // 3. Execute migration via migration service
+    const result = await executeLocalTransactionsMigration({
+      transactionsToMigrate: candidateTxnsList,
+      activeUserId,
+      supabaseClient: supabase
+    });
+
+    // 4. Stale-write guard
+    const currentLatestUser = userRef.current || user;
+    if (currentLatestUser && currentLatestUser.id !== activeUserId) {
+      return {
+        success: false,
+        error: 'User session changed during transaction migration.',
+        totalAttempted: Array.isArray(candidateTxnsList) ? candidateTxnsList.length : 0,
+        migratedCount: 0,
+        failedCount: Array.isArray(candidateTxnsList) ? candidateTxnsList.length : 0,
+        skippedCount: 0,
+        confirmedTxns: [],
+        errors: [{ message: 'User session changed during migration' }]
+      };
+    }
+
+    // 5. Update in-memory cloud transactions with confirmed records
+    // CRITICAL: NEVER delete or modify userTransactions or localStorage!
+    if (result.confirmedTxns && result.confirmedTxns.length > 0) {
+      setCloudTransactions((prev) => [...result.confirmedTxns, ...prev]);
+      setCloudTxnStatus('success');
+    }
+
+    return result;
+  }, [isSampleMode, user]);
+
+  const updateTransaction = useCallback(async (id, updatedFields) => {
+    // A. Demo Mode: Local memory only
+    if (isSampleMode) {
+      const updater = (prevList) =>
+        prevList.map((t) => {
+          if (t.id === id) {
+            const merged = { ...t, ...updatedFields };
+            return sanitizeTransaction(merged) || t;
+          }
+          return t;
+        });
       setSampleTransactions(updater);
-    } else {
-      setUserTransactions(updater);
+      return { success: true, error: null };
     }
-  }, [isSampleMode]);
 
-  const deleteTransaction = useCallback((id) => {
-    const remover = (prevList) => prevList.filter((t) => t.id !== id);
-    if (isSampleMode) {
-      setSampleTransactions(remover);
-    } else {
-      setUserTransactions(remover);
+    // B. Purely Local / Offline Mode (when Supabase credentials are not configured)
+    if (!isSupabaseConfigured || !supabase) {
+      const updater = (prevList) =>
+        prevList.map((t) => {
+          if (t.id === id) {
+            const merged = { ...t, ...updatedFields };
+            return sanitizeTransaction(merged) || t;
+          }
+          return t;
+        });
+      setUserTransactions(updater);
+      return { success: true, error: null };
     }
-  }, [isSampleMode]);
+
+    // C. Authenticated Personal Mode: Resolve current user session
+    let activeUser = userRef.current || user;
+    if (!activeUser?.id) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        activeUser = sessionData?.session?.user || null;
+      } catch (authErr) {
+        console.error('[SpendSense FinanceContext] Error checking session:', authErr);
+      }
+    }
+
+    if (!activeUser?.id) {
+      return {
+        success: false,
+        error: 'Active user session not found. Please verify you are signed in to update cloud records.'
+      };
+    }
+
+    const activeUserId = activeUser.id;
+
+    // Find existing transaction in cloudTransactions
+    const existing = cloudTransactions.find((t) => t.id === id);
+    if (!existing) {
+      return { success: false, error: 'Transaction not found in cloud records.' };
+    }
+
+    const merged = { ...existing, ...updatedFields };
+    const sanitized = sanitizeTransaction(merged);
+    if (!sanitized) {
+      return { success: false, error: 'Invalid transaction update payload.' };
+    }
+
+    try {
+      const dbRowPayload = toSupabaseTransactionRow(sanitized, activeUserId);
+
+      // Update in Supabase, scoped by both record id and user_id for defense-in-depth alongside RLS
+      const { data, error } = await supabase
+        .from('transactions')
+        .update(dbRowPayload)
+        .eq('id', id)
+        .eq('user_id', activeUserId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[SpendSense] Supabase update error:', error.message);
+        return { success: false, error: error.message || 'Failed to update transaction in cloud.' };
+      }
+
+      if (!data) {
+        return { success: false, error: 'No confirmation data returned from database update.' };
+      }
+
+      // Guard: prevent stale update if user changed/signed out during in-flight call
+      const currentLatestUser = userRef.current || user;
+      if (currentLatestUser && currentLatestUser.id !== activeUserId) {
+        return { success: false, error: 'User session changed during transaction update.' };
+      }
+
+      const updatedTxn = fromSupabaseTransactionRow(data, sanitized);
+
+      // Confirmed update: update cloud transactions in memory
+      setCloudTransactions((prev) =>
+        prev.map((t) => (t.id === id ? updatedTxn : t))
+      );
+
+      return { success: true, data: updatedTxn, error: null };
+    } catch (err) {
+      console.error('[SpendSense] Unexpected error during transaction update:', err);
+      return { success: false, error: err.message || 'Network error while updating transaction.' };
+    }
+  }, [isSampleMode, user, cloudTransactions]);
+
+  const deleteTransaction = useCallback(async (id) => {
+    // A. Demo Mode: Local memory only
+    if (isSampleMode) {
+      setSampleTransactions((prev) => prev.filter((t) => t.id !== id));
+      return { success: true, error: null };
+    }
+
+    // B. Purely Local / Offline Mode (when Supabase credentials are not configured)
+    if (!isSupabaseConfigured || !supabase) {
+      setUserTransactions((prev) => prev.filter((t) => t.id !== id));
+      return { success: true, error: null };
+    }
+
+    // C. Authenticated Personal Mode: Resolve current user session
+    let activeUser = userRef.current || user;
+    if (!activeUser?.id) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        activeUser = sessionData?.session?.user || null;
+      } catch (authErr) {
+        console.error('[SpendSense FinanceContext] Error checking session:', authErr);
+      }
+    }
+
+    if (!activeUser?.id) {
+      return {
+        success: false,
+        error: 'Active user session not found. Please verify you are signed in to delete cloud records.'
+      };
+    }
+
+    const activeUserId = activeUser.id;
+
+    try {
+      // Scoped by both record id and user_id for defense-in-depth alongside RLS
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', activeUserId);
+
+      if (error) {
+        console.error('[SpendSense] Supabase delete error:', error.message);
+        return { success: false, error: error.message || 'Failed to delete transaction from cloud.' };
+      }
+
+      // Guard: prevent stale delete if user changed/signed out during in-flight call
+      const currentLatestUser = userRef.current || user;
+      if (currentLatestUser && currentLatestUser.id !== activeUserId) {
+        return { success: false, error: 'User session changed during transaction delete.' };
+      }
+
+      // Confirmed delete: only remove from state after database confirms deletion
+      setCloudTransactions((prev) => prev.filter((t) => t.id !== id));
+
+      return { success: true, error: null };
+    } catch (err) {
+      console.error('[SpendSense] Unexpected error during transaction delete:', err);
+      return { success: false, error: err.message || 'Network error while deleting transaction.' };
+    }
+  }, [isSampleMode, user]);
 
   // 8. Budget Operations
   const addBudget = useCallback((rawBudget) => {
@@ -560,9 +1107,17 @@ export function FinanceProvider({ children }) {
     userBudgets,
     userGoals,
 
+    // Cloud Sync State & Operations (Phase 2)
+    cloudTransactions,
+    cloudTxnStatus,
+    cloudTxnLoading: cloudTxnStatus === 'loading',
+    cloudTxnError,
+    refetchCloudTransactions: fetchCloudTransactions,
+
     // Transaction Operations
     addTransaction,
     addTransactionsBatch,
+    migrateLocalStorageTransactions,
     updateTransaction,
     deleteTransaction,
 

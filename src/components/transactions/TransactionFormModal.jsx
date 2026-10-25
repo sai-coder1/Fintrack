@@ -3,7 +3,7 @@ import { useFinance } from '../../hooks/useFinance';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { DEFAULT_CATEGORIES } from '../../data/defaultCategories';
-import { ArrowDownLeft, ArrowUpRight, IndianRupee } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, IndianRupee, AlertCircle } from 'lucide-react';
 
 export function TransactionFormModal() {
   const {
@@ -26,6 +26,8 @@ export function TransactionFormModal() {
   });
 
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   useEffect(() => {
     if (editingTransaction) {
@@ -53,6 +55,8 @@ export function TransactionFormModal() {
       });
       setErrors({});
     }
+    setSubmitError(null);
+    setSubmitting(false);
   }, [editingTransaction, isTxnModalOpen]);
 
   // Sync category change with default nature
@@ -103,22 +107,41 @@ export function TransactionFormModal() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
 
     const payload = {
       ...formData,
       amount: parseFloat(formData.amount)
     };
 
-    if (editingTransaction && editingTransaction.id) {
-      updateTransaction(editingTransaction.id, payload);
-    } else {
-      addTransaction(payload);
-    }
+    try {
+      if (editingTransaction && editingTransaction.id) {
+        const result = await updateTransaction(editingTransaction.id, payload);
+        if (!result || result.error) {
+          setSubmitError(result?.error || 'Failed to update transaction.');
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        const result = await addTransaction(payload);
+        if (!result || result.error) {
+          setSubmitError(result?.error || 'Failed to save transaction.');
+          setSubmitting(false);
+          return;
+        }
+      }
 
-    closeTxnModal();
+      closeTxnModal();
+    } catch (err) {
+      setSubmitError(err.message || 'An unexpected error occurred while saving.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const isEditing = Boolean(editingTransaction && editingTransaction.id);
@@ -132,15 +155,25 @@ export function TransactionFormModal() {
       maxWidth="520px"
       footer={
         <div className="flex items-center justify-end gap-3" style={{ width: '100%' }}>
-          <Button variant="secondary" onClick={closeTxnModal}>
+          <Button variant="secondary" onClick={closeTxnModal} disabled={submitting}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmit}>
-            {isEditing ? 'Save Changes' : 'Add to Ledger'}
+          <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? 'Saving...' : (isEditing ? 'Save Changes' : 'Add to Ledger')}
           </Button>
         </div>
       }
     >
+      {submitError && (
+        <div className="alert-card alert-card-danger" style={{ padding: 'var(--space-2) var(--space-3)', marginBottom: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)' }}>
+            <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--expense-rose)' }} />
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 500, color: 'var(--text-primary)' }}>
+              {submitError}
+            </span>
+          </div>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {/* Type Toggle: Expense vs Income */}
         <div className="form-group" style={{ marginBottom: 0 }}>

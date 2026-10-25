@@ -32,10 +32,13 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     box-shadow: 0 4px 14px rgba(67, 56, 202, 0.35);
   }
+
   50% {
     transform: scale(1.05);
     box-shadow: 0 6px 20px rgba(67, 56, 202, 0.5);
@@ -412,6 +415,7 @@
 .landing-hero-title .gradient-text {
   background: linear-gradient(135deg, var(--primary-indigo) 0%, var(--interactive-indigo) 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -489,9 +493,17 @@
   background-color: var(--border-default);
 }
 
-.mockup-dot:nth-child(1) { background-color: #ef4444; }
-.mockup-dot:nth-child(2) { background-color: #f59e0b; }
-.mockup-dot:nth-child(3) { background-color: #10b981; }
+.mockup-dot:nth-child(1) {
+  background-color: #ef4444;
+}
+
+.mockup-dot:nth-child(2) {
+  background-color: #f59e0b;
+}
+
+.mockup-dot:nth-child(3) {
+  background-color: #10b981;
+}
 
 .mockup-title {
   font-size: var(--text-xs);
@@ -782,11 +794,12 @@
    4. Responsive Breakpoints
    -------------------------------------------------------------------------- */
 @media (max-width: 1024px) {
+
   .features-grid,
   .how-steps-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .landing-privacy-card {
     flex-direction: column;
     align-items: flex-start;
@@ -797,7 +810,7 @@
   .landing-hero-title {
     font-size: 2.5rem;
   }
-  
+
   .landing-hero-subtitle {
     font-size: var(--text-base);
   }
@@ -806,11 +819,11 @@
   .how-steps-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .landing-nav-menu {
     display: none;
   }
-  
+
   .landing-footer-inner,
   .landing-footer-bottom {
     flex-direction: column;

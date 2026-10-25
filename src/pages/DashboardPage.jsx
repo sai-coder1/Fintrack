@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFinance } from '../hooks/useFinance';
+import { useAuth } from '../hooks/useAuth';
 import { formatINR, formatDate, formatPercentage } from '../utils/formatters';
 import { calculateBudgetPacing } from '../utils/calculations';
 import { StatCard } from '../components/common/StatCard';
@@ -51,8 +52,18 @@ export function DashboardPage() {
     needsVsWants,
     forecast,
     setCurrentPage,
-    openAddTxnModal
+    openAddTxnModal,
+    isSampleMode
   } = useFinance();
+  const { user, profile } = useAuth();
+
+  const greetingName = isSampleMode
+    ? (settings?.displayName?.trim() || 'Sai')
+    : (profile?.full_name?.trim() ||
+       user?.user_metadata?.full_name?.trim() ||
+       (user?.email ? user.email.split('@')[0] : '') ||
+       settings?.displayName?.trim() ||
+       'User');
 
   // Prepare cash flow data for chart (group by day in current active month)
   const chartData = React.useMemo(() => {
@@ -118,7 +129,7 @@ export function DashboardPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 style={{ fontSize: 'var(--text-2xl)', marginBottom: '4px' }}>
-            Welcome back, {settings?.displayName?.trim() || 'Sai'} 👋
+            Welcome back, {greetingName} 👋
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', margin: 0 }}>
             October 2026 Financial Overview &mdash; Track daily cash flow, anticipated month-end balance, and category limits.

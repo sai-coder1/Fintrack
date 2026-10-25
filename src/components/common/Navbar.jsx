@@ -53,7 +53,7 @@ const PAGE_METADATA = {
 
 export function Navbar({ onOpenMobileMenu }) {
   const { currentPage, isSampleMode, openAddTxnModal, activeMonth, alerts = [], setCurrentPage } = useFinance();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const currentMeta = PAGE_METADATA[currentPage] || {
     title: 'SpendSense',
     subtitle: 'Everyday Money Decision Assistant'
@@ -107,7 +107,7 @@ export function Navbar({ onOpenMobileMenu }) {
         {/* Authenticated User Badge */}
         {user && (
           <Badge variant="neutral" icon={UserIcon} className="hide-on-mobile">
-            {user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0]}
+            {profile?.full_name?.split(' ')[0] || user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0]}
           </Badge>
         )}
 
