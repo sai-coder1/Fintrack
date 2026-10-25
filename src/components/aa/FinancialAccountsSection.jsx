@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 /**
- * SpendSense — Financial Accounts Connection Section
+ * FinTrack — Financial Accounts Connection Section
  *
  * Implements the responsive "Connect financial accounts" UI within Settings,
  * providing comprehensive explanations of the RBI Account Aggregator ecosystem,
@@ -129,7 +129,7 @@ export function FinancialAccountsSection() {
                         ? 'Last connection attempt failed due to server timeout.'
                         : activeState === 'consent_revoked'
                           ? 'Consent artifact revoked. Statement syncing is stopped.'
-                          : 'No external bank accounts currently linked to SpendSense.'}
+                          : 'No external bank accounts currently linked to FinTrack.'}
               </p>
             </div>
           </div>
@@ -452,7 +452,7 @@ export function FinancialAccountsSection() {
               <span>What is NEVER Accessed or Requested</span>
             </div>
             <p style={{ fontSize: 'var(--text-xs)', color: '#92400e', margin: 0, lineHeight: 1.55 }}>
-              SpendSense <strong>never</strong> asks for, handles, or stores your internet banking user ID, netbanking passwords, ATM PINs, OTPs, or debit/credit card CVVs.
+              FinTrack <strong>never</strong> asks for, handles, or stores your internet banking user ID, netbanking passwords, ATM PINs, OTPs, or debit/credit card CVVs.
             </p>
             <div
               style={{

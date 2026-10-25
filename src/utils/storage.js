@@ -240,7 +240,7 @@ export function validateBackupData(jsonData) {
   if (!hasTxns && !hasBudgets && !hasGoals && !hasSettings) {
     return {
       valid: false,
-      error: 'Unrecognized backup structure: File does not contain any SpendSense transactions, budgets, goals, or settings.'
+      error: 'Unrecognized backup structure: File does not contain any FinTrack transactions, budgets, goals, or settings.'
     };
   }
 
@@ -256,7 +256,7 @@ export function validateBackupData(jsonData) {
   return {
     valid: true,
     preview: {
-      app: jsonData.app || 'SpendSense',
+      app: jsonData.app || 'FinTrack',
       version: jsonData.version || STORAGE_VERSION,
       exportedAt: jsonData.exportedAt || null,
       transactionCount: validTxns.length,

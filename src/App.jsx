@@ -70,7 +70,7 @@ function AppContent() {
         <div className="auth-loading-logo">
           <span>₹</span>
         </div>
-        <p className="auth-loading-text">Loading SpendSense...</p>
+        <p className="auth-loading-text">Loading FinTrack...</p>
       </div>
     );
   }

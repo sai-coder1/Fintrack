@@ -55,7 +55,7 @@ export function Navbar({ onOpenMobileMenu }) {
   const { currentPage, isSampleMode, openAddTxnModal, activeMonth, alerts = [], setCurrentPage } = useFinance();
   const { user, profile } = useAuth();
   const currentMeta = PAGE_METADATA[currentPage] || {
-    title: 'SpendSense',
+    title: 'FinTrack',
     subtitle: 'Everyday Money Decision Assistant'
   };
 

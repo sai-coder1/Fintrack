@@ -144,7 +144,7 @@ export function SignUpPage() {
           <div className="auth-brand-logo" onClick={() => setCurrentPage('landing')}>
             <span>₹</span>
           </div>
-          <h1 className="auth-card-title">Create your SpendSense account</h1>
+          <h1 className="auth-card-title">Create your FinTrack account</h1>
           <p className="auth-card-subtitle">
             Start tracking spending patterns, setting budgets, and making confident money decisions.
           </p>
@@ -393,7 +393,7 @@ export function SignUpPage() {
             className="auth-link"
             onClick={() => setCurrentPage('landing')}
           >
-            &larr; Back to SpendSense Home
+            &larr; Back to FinTrack Home
           </button>
         </div>
       </div>

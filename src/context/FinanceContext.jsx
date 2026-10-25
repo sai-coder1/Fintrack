@@ -1028,7 +1028,7 @@ export function FinanceProvider({ children }) {
   // 13. JSON Export & Restore Portability
   const exportDataJSON = useCallback(() => {
     const payload = {
-      app: 'SpendSense',
+      app: 'FinTrack',
       version: STORAGE_VERSION,
       exportedAt: new Date().toISOString(),
       activeMode,
@@ -1041,7 +1041,7 @@ export function FinanceProvider({ children }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `spendsense_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `fintrack_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }, [activeMode, settings, userTransactions, userBudgets, userGoals]);

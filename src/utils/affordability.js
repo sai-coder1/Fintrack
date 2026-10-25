@@ -1,5 +1,5 @@
 /**
- * SpendSense — "Can I Afford This?" Purchase Decision Simulator Engine
+ * FinTrack — "Can I Afford This?" Purchase Decision Simulator Engine
  *
  * MATHEMATICAL CONVENTIONS & INTEGRITY RULES:
  * 1. Balance Model:
@@ -335,6 +335,6 @@ export function evaluatePurchaseDecision({
     },
 
     scenarios,
-    disclaimer: 'SpendSense purchase affordability simulations are mathematical cashflow estimations for budgeting guidance only. They do not constitute certified financial advisory services.'
+    disclaimer: 'FinTrack purchase affordability simulations are mathematical cashflow estimations for budgeting guidance only. They do not constitute certified financial advisory services.'
   };
 }

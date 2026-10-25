@@ -530,7 +530,7 @@ export function CsvImportPage() {
                 lineHeight: 1.5
               }}
             >
-              SpendSense automatically evaluated the header row and pre-mapped matching columns. Verify or adjust the mapping below.
+              FinTrack automatically evaluated the header row and pre-mapped matching columns. Verify or adjust the mapping below.
             </div>
 
             {/* Date & Date Format Settings */}
@@ -918,7 +918,7 @@ export function CsvImportPage() {
               Statement Successfully Imported!
             </h3>
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', maxWidth: 520, lineHeight: 1.6 }}>
-              Added <strong>{importSummary.imported}</strong> new transactions into your active SpendSense ledger. Your Dashboard, Transactions ledger, and Analytics are updated immediately.
+              Added <strong>{importSummary.imported}</strong> new transactions into your active FinTrack ledger. Your Dashboard, Transactions ledger, and Analytics are updated immediately.
             </p>
 
             {/* Diagnostic breakdown tags */}

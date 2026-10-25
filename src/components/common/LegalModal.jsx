@@ -13,8 +13,8 @@ export function LegalModal({ isOpen, onClose, type = 'privacy' }) {
       title={isPrivacy ? 'Privacy Policy' : 'Terms of Service'}
       subtitle={
         isPrivacy
-          ? 'How SpendSense handles and protects your financial data'
-          : 'User guidelines and conditions for using SpendSense'
+          ? 'How FinTrack handles and protects your financial data'
+          : 'User guidelines and conditions for using FinTrack'
       }
       maxWidth="620px"
       footer={
@@ -38,7 +38,7 @@ export function LegalModal({ isOpen, onClose, type = 'privacy' }) {
             <div>
               <h4 style={{ color: 'var(--text-primary)', marginBottom: '4px', fontSize: 'var(--text-base)' }}>1. Client-Side Financial Integrity</h4>
               <p style={{ margin: 0 }}>
-                SpendSense processes your financial records locally within your browser workspace. We never ask for your net banking passwords, UPI PINs, or automatic bank scraping credentials.
+                FinTrack processes your financial records locally within your browser workspace. We never ask for your net banking passwords, UPI PINs, or automatic bank scraping credentials.
               </p>
             </div>
 
@@ -75,7 +75,7 @@ export function LegalModal({ isOpen, onClose, type = 'privacy' }) {
             <div>
               <h4 style={{ color: 'var(--text-primary)', marginBottom: '4px', fontSize: 'var(--text-base)' }}>1. Educational and Planning Purpose</h4>
               <p style={{ margin: 0 }}>
-                SpendSense is designed as a personal budgeting, expense tracking, and affordability simulation tool. All simulations, pacing benchmarks, and month-end forecasts are heuristic estimates based on your logged inputs.
+                FinTrack is designed as a personal budgeting, expense tracking, and affordability simulation tool. All simulations, pacing benchmarks, and month-end forecasts are heuristic estimates based on your logged inputs.
               </p>
             </div>
 
@@ -96,7 +96,7 @@ export function LegalModal({ isOpen, onClose, type = 'privacy' }) {
             <div>
               <h4 style={{ color: 'var(--text-primary)', marginBottom: '4px', fontSize: 'var(--text-base)' }}>4. Service Modifications</h4>
               <p style={{ margin: 0 }}>
-                SpendSense reserves the right to improve, update, or modify features in accordance with ongoing development and user feedback.
+                FinTrack reserves the right to improve, update, or modify features in accordance with ongoing development and user feedback.
               </p>
             </div>
           </>

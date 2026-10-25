@@ -67,7 +67,7 @@ export function LandingPage() {
               <span style={{ fontSize: '1.1rem', fontWeight: 800 }}>₹</span>
             </div>
             <div>
-              <span className="brand-title">SpendSense</span>
+              <span className="brand-title">FinTrack</span>
               <span className="brand-subtitle-badge">Decision Assistant</span>
             </div>
           </div>
@@ -183,7 +183,7 @@ export function LandingPage() {
                 <span className="mockup-dot"></span>
                 <span className="mockup-dot"></span>
               </div>
-              <span className="mockup-title">SpendSense Financial Overview &mdash; October 2026</span>
+              <span className="mockup-title">FinTrack Financial Overview &mdash; October 2026</span>
               <Badge variant="indigo" icon={Calendar}>
                 Active Month: Oct 2026
               </Badge>
@@ -295,7 +295,7 @@ export function LandingPage() {
             Purpose-Built for Everyday Indian Households
           </h2>
           <p className="landing-section-desc">
-            SpendSense provides actionable, real-time financial intelligence without requiring bank passwords or automatic SMS access.
+            FinTrack provides actionable, real-time financial intelligence without requiring bank passwords or automatic SMS access.
           </p>
         </div>
 
@@ -419,7 +419,7 @@ export function LandingPage() {
               Your Bank Credentials Stay In Your Hands. Always.
             </h3>
             <p className="landing-privacy-desc">
-              SpendSense does not require automatic PhonePe, Google Pay, or net banking credential synchronization. You can manually enter daily expenses or import supported bank CSV files whenever you choose.
+              FinTrack does not require automatic PhonePe, Google Pay, or net banking credential synchronization. You can manually enter daily expenses or import supported bank CSV files whenever you choose.
             </p>
           </div>
           <Button
@@ -442,7 +442,7 @@ export function LandingPage() {
               <span style={{ fontSize: '1.1rem', fontWeight: 800 }}>₹</span>
             </div>
             <div>
-              <span className="brand-title">SpendSense</span>
+              <span className="brand-title">FinTrack</span>
               <span className="brand-subtitle-badge">Make Every Rupee Count</span>
             </div>
           </div>
@@ -494,7 +494,7 @@ export function LandingPage() {
         </div>
 
         <div className="landing-footer-bottom">
-          <span>&copy; 2026 SpendSense. Designed for Indian Rupee (INR) personal budgeting.</span>
+          <span>&copy; 2026 FinTrack. Designed for Indian Rupee (INR) personal budgeting.</span>
           <span>Client-side data security &bull; No automatic bank scraping</span>
         </div>
       </footer>

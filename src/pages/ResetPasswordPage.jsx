@@ -95,7 +95,7 @@ export function ResetPasswordPage() {
           </div>
           <h1 className="auth-card-title">Set new password</h1>
           <p className="auth-card-subtitle">
-            Choose a strong, secure password for your SpendSense account.
+            Choose a strong, secure password for your FinTrack account.
           </p>
         </div>
 
@@ -136,7 +136,7 @@ export function ResetPasswordPage() {
                 Password Updated!
               </h2>
               <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                Your SpendSense password has been successfully reset. You can now access your dashboard.
+                Your FinTrack password has been successfully reset. You can now access your dashboard.
               </p>
               <div style={{ marginTop: 'var(--space-4)' }}>
                 <Button
@@ -279,7 +279,7 @@ export function ResetPasswordPage() {
             className="auth-link"
             onClick={() => setCurrentPage('landing')}
           >
-            &larr; Back to SpendSense Home
+            &larr; Back to FinTrack Home
           </button>
         </div>
       </div>

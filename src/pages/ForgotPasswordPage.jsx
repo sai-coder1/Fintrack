@@ -66,7 +66,7 @@ export function ForgotPasswordPage() {
           </div>
           <h1 className="auth-card-title">Reset your password</h1>
           <p className="auth-card-subtitle">
-            Enter your email and we'll send you a secure link to reset your SpendSense password.
+            Enter your email and we'll send you a secure link to reset your FinTrack password.
           </p>
         </div>
 
@@ -181,7 +181,7 @@ export function ForgotPasswordPage() {
             className="auth-link"
             onClick={() => setCurrentPage('landing')}
           >
-            &larr; Back to SpendSense Home
+            &larr; Back to FinTrack Home
           </button>
         </div>
       </div>

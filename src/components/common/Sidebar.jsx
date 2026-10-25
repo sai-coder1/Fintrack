@@ -62,7 +62,7 @@ export function Sidebar({ isOpen, onClose }) {
               <span style={{ fontSize: '1.1rem', fontWeight: 800 }}>₹</span>
             </div>
             <div>
-              <span className="brand-title">SpendSense</span>
+              <span className="brand-title">FinTrack</span>
               <span className="brand-subtitle-badge">Fintech Assistant</span>
             </div>
           </div>
@@ -161,7 +161,7 @@ export function Sidebar({ isOpen, onClose }) {
                 className="btn btn-ghost btn-sm btn-icon-only"
                 onClick={handleSignOut}
                 title="Sign Out"
-                aria-label="Sign out of SpendSense"
+                aria-label="Sign out of FinTrack"
                 style={{ color: 'var(--expense-rose)', flexShrink: 0 }}
               >
                 <LogOut size={15} />

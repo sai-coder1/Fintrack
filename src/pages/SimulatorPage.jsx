@@ -398,7 +398,7 @@ export function SimulatorPage() {
                   color: 'var(--text-muted)'
                 }}
               >
-                SpendSense Verdict
+                FinTrack Verdict
               </span>
               <Badge variant={evaluation.badgeVariant}>
                 {evaluation.assessment}

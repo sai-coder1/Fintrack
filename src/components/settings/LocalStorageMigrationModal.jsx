@@ -202,7 +202,7 @@ export function LocalStorageMigrationModal({ isOpen, onClose }) {
                 setCurrentPage('signin');
               }}
             >
-              Sign In to SpendSense
+              Sign In to FinTrack
             </Button>
           </div>
         }
@@ -225,7 +225,7 @@ export function LocalStorageMigrationModal({ isOpen, onClose }) {
                 Authentication Required
               </h4>
               <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Cloud migration requires an active, authenticated SpendSense account. Please sign in to securely link your local records with Row Level Security.
+                Cloud migration requires an active, authenticated FinTrack account. Please sign in to securely link your local records with Row Level Security.
               </p>
             </div>
           </div>

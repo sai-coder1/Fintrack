@@ -315,7 +315,7 @@ export function SettingsPage() {
       {/* 3. Storage Diagnostics & Workspace Separation */}
       <Card
         title="Client-Side Storage Diagnostics & Modes"
-        subtitle="SpendSense persists all data locally using schema-versioned localStorage"
+        subtitle="FinTrack persists all data locally using schema-versioned localStorage"
         action={
           <Badge variant="emerald" icon={ShieldCheck}>
             100% Client-Side Privacy
@@ -522,11 +522,11 @@ export function SettingsPage() {
         {/* Restore from JSON Backup */}
         <Card
           title="Restore from Snapshot (.json)"
-          subtitle="Upload and validate a previously exported SpendSense JSON archive"
+          subtitle="Upload and validate a previously exported FinTrack JSON archive"
         >
           <div className="flex flex-col gap-4">
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-              Select a valid SpendSense backup file. SpendSense will validate the schema, show you a confirmation preview, and safely replace personal records upon approval.
+              Select a valid FinTrack backup file. FinTrack will validate the schema, show you a confirmation preview, and safely replace personal records upon approval.
             </p>
 
             <input
@@ -614,7 +614,7 @@ export function SettingsPage() {
               <span>Sensitive Financial Information Advisory</span>
             </div>
             <p style={{ fontSize: 'var(--text-xs)', color: '#92400e', margin: 0, lineHeight: 1.55 }}>
-              <strong>Important Security Notice:</strong> SpendSense is an educational prototype and hackathon project. Browser <code>localStorage</code> is unencrypted. We do not claim military-grade encryption or automated bank synchronization. <strong>Do not enter real bank account passwords, debit/credit card CVVs, or government identity numbers (PAN/Aadhaar) into this application.</strong> Always use pseudonymized or demo narrations.
+              <strong>Important Security Notice:</strong> FinTrack is an educational prototype and hackathon project. Browser <code>localStorage</code> is unencrypted. We do not claim military-grade encryption or automated bank synchronization. <strong>Do not enter real bank account passwords, debit/credit card CVVs, or government identity numbers (PAN/Aadhaar) into this application.</strong> Always use pseudonymized or demo narrations.
             </p>
           </div>
         </div>
@@ -703,7 +703,7 @@ export function SettingsPage() {
         {pendingBackupPreview && (
           <div className="flex flex-col gap-4">
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-              A valid SpendSense backup file was verified. Restoring it will replace your current personal records:
+              A valid FinTrack backup file was verified. Restoring it will replace your current personal records:
             </p>
 
             <div
@@ -768,7 +768,7 @@ export function SettingsPage() {
           setWipeConfirmText('');
         }}
         title="Confirm Irreversible Data Wipe"
-        subtitle="This action will permanently delete all personal SpendSense records"
+        subtitle="This action will permanently delete all personal FinTrack records"
         maxWidth="460px"
         footer={
           <div className="flex items-center justify-end gap-3" style={{ width: '100%' }}>
