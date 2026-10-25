@@ -271,8 +271,14 @@ export function CsvImportPage() {
     }));
 
     try {
+      const duplicateCount = previewRows.filter((r) => r.isDuplicate).length;
+      const invalidCount = previewRows.filter((r) => !r.isValid).length;
+
       // Commit batch to FinanceContext (handles Supabase cloud insert or local mode)
-      const result = await addTransactionsBatch(importPayload);
+      const result = await addTransactionsBatch(importPayload, {
+        duplicates: duplicateCount,
+        invalid: invalidCount
+      });
 
       const countAdded = typeof result === 'object' ? (result.imported ?? result.count ?? 0) : Number(result) || 0;
       const failedCount = typeof result === 'object' ? (result.failed || 0) : 0;
@@ -284,8 +290,6 @@ export function CsvImportPage() {
         return;
       }
 
-      const duplicateCount = previewRows.filter((r) => r.isDuplicate).length;
-      const invalidCount = previewRows.filter((r) => !r.isValid).length;
       const skippedCount = previewRows.length - countAdded;
 
       setImportSummary({

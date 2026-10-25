@@ -31,12 +31,24 @@ import {
 import { calculateMonthEndForecast } from '../utils/forecasting';
 import { generateActionableAlerts } from '../utils/alerts';
 import { useAuth } from '../hooks/useAuth';
+import { useNotifications } from './NotificationContext';
 import { getPageFromPath, getPathFromPage } from '../utils/navigation';
 
 const FinanceContext = createContext(null);
 
 export function FinanceProvider({ children }) {
   const { user, profile } = useAuth();
+
+  // Safely hook into NotificationContext
+  let notifApi = null;
+  try {
+    notifApi = useNotifications();
+  } catch {
+    notifApi = null;
+  }
+  const showToast = notifApi?.showToast || (() => {});
+  const addNotification = notifApi?.addNotification || (() => {});
+  const evaluateBudgetThresholdCrossings = notifApi?.evaluateBudgetThresholdCrossings || (() => {});
 
   // Run legacy storage migration once
   useEffect(() => {
@@ -218,6 +230,18 @@ export function FinanceProvider({ children }) {
   const budgets = isSampleMode ? sampleBudgets : userBudgets;
   const goals = isSampleMode ? sampleGoals : userGoals;
 
+  // Initial sync of current spending tiers without triggering alert toasts on mount
+  useEffect(() => {
+    if (transactions && budgets) {
+      evaluateBudgetThresholdCrossings({
+        transactions,
+        budgets,
+        activeMonth: settings.activeMonth || '2026-10',
+        isInitialLoad: true
+      });
+    }
+  }, [settings.activeMonth, isSampleMode, user?.id]);
+
   // 6. Persistence Side-Effects
   useEffect(() => {
     safeSet(STORAGE_KEYS.ACTIVE_MODE, activeMode);
@@ -278,18 +302,31 @@ export function FinanceProvider({ children }) {
   const addTransaction = useCallback(async (rawTxn) => {
     const sanitized = sanitizeTransaction(rawTxn);
     if (!sanitized) {
+      showToast({ type: 'danger', title: 'Transaction Error', message: 'Unable to save your transaction. Please try again.' });
       return { data: null, error: 'Invalid transaction data.' };
     }
 
     // A. Demo Mode: Local memory only, 100% isolated
     if (isSampleMode) {
       setSampleTransactions((prev) => [sanitized, ...prev]);
+      showToast({ type: 'success', title: 'Transaction Added', message: 'Transaction added successfully.' });
+      evaluateBudgetThresholdCrossings({
+        transactions: [sanitized, ...sampleTransactions],
+        budgets: sampleBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
       return { data: sanitized, error: null };
     }
 
     // B. Purely Local / Offline Mode (when Supabase credentials are not configured)
     if (!isSupabaseConfigured || !supabase) {
       setUserTransactions((prev) => [sanitized, ...prev]);
+      showToast({ type: 'success', title: 'Transaction Added', message: 'Transaction added successfully.' });
+      evaluateBudgetThresholdCrossings({
+        transactions: [sanitized, ...userTransactions],
+        budgets: userBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
       return { data: sanitized, error: null };
     }
 
@@ -305,10 +342,9 @@ export function FinanceProvider({ children }) {
     }
 
     if (!activeUser?.id) {
-      return {
-        data: null,
-        error: 'Active user session not found. Please verify you are signed in to save transactions to your cloud ledger.'
-      };
+      const errMsg = 'Active user session not found. Please verify you are signed in to save transactions to your cloud ledger.';
+      showToast({ type: 'danger', title: 'Transaction Error', message: 'Unable to save your transaction. Please try again.' });
+      return { data: null, error: errMsg };
     }
 
     const activeUserId = activeUser.id;
@@ -324,16 +360,19 @@ export function FinanceProvider({ children }) {
 
       if (error) {
         console.error('[SpendSense] Supabase insert error:', error.message);
+        showToast({ type: 'danger', title: 'Transaction Error', message: 'Unable to save your transaction. Please try again.' });
         return { data: null, error: error.message || 'Failed to save transaction to cloud.' };
       }
 
       if (!data) {
+        showToast({ type: 'danger', title: 'Transaction Error', message: 'Unable to save your transaction. Please try again.' });
         return { data: null, error: 'No confirmation data returned from database.' };
       }
 
       // Guard: prevent stale write if user changed/signed out during in-flight call
       const currentLatestUser = userRef.current || user;
       if (currentLatestUser && currentLatestUser.id !== activeUserId) {
+        showToast({ type: 'danger', title: 'Transaction Error', message: 'Unable to save your transaction. Please try again.' });
         return { data: null, error: 'User session changed during transaction save.' };
       }
 
@@ -344,14 +383,22 @@ export function FinanceProvider({ children }) {
       setCloudTransactions((prev) => [createdTxn, ...prev]);
       setCloudTxnStatus('success');
 
+      showToast({ type: 'success', title: 'Transaction Added', message: 'Transaction added successfully.' });
+      evaluateBudgetThresholdCrossings({
+        transactions: [createdTxn, ...cloudTransactions],
+        budgets: userBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
+
       return { data: createdTxn, error: null };
     } catch (err) {
       console.error('[SpendSense] Unexpected error during transaction creation:', err);
+      showToast({ type: 'danger', title: 'Transaction Error', message: 'Unable to save your transaction. Please try again.' });
       return { data: null, error: err.message || 'Network error while creating transaction.' };
     }
-  }, [isSampleMode, user]);
+  }, [isSampleMode, user, sampleTransactions, userTransactions, cloudTransactions, sampleBudgets, userBudgets, settings.activeMonth, showToast, evaluateBudgetThresholdCrossings]);
 
-  const addTransactionsBatch = useCallback(async (rawTxnsList) => {
+  const addTransactionsBatch = useCallback(async (rawTxnsList, options = {}) => {
     if (!Array.isArray(rawTxnsList) || rawTxnsList.length === 0) {
       return { success: true, count: 0, imported: 0, failed: 0, errors: [] };
     }
@@ -361,18 +408,59 @@ export function FinanceProvider({ children }) {
       .filter(Boolean);
 
     if (sanitizedList.length === 0) {
+      showToast({ type: 'danger', title: 'Import Failed', message: 'No valid transactions found in batch.' });
       return { success: false, error: 'No valid transactions found in batch.', count: 0, imported: 0, failed: rawTxnsList.length, errors: [] };
     }
 
     // A. Demo Mode: Local memory only, 100% isolated
     if (isSampleMode) {
       setSampleTransactions((prev) => [...sanitizedList, ...prev]);
+      const importedCount = sanitizedList.length;
+      const dupCount = options?.duplicates ?? 0;
+      const invCount = options?.invalid ?? 0;
+      let importMsg = `CSV import completed: ${importedCount} imported.`;
+      if (dupCount > 0 || invCount > 0) {
+        importMsg = `CSV import completed: ${importedCount} imported, ${dupCount} duplicates, ${invCount} invalid.`;
+      }
+      showToast({ type: 'success', title: 'CSV Import Completed', message: importMsg, duration: 6500 });
+      addNotification({
+        type: 'success',
+        title: 'CSV Import Summary',
+        message: importMsg,
+        category: 'CSV Import',
+        metadata: { imported: importedCount, duplicates: dupCount, invalid: invCount }
+      });
+      evaluateBudgetThresholdCrossings({
+        transactions: [...sanitizedList, ...sampleTransactions],
+        budgets: sampleBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
       return { success: true, count: sanitizedList.length, imported: sanitizedList.length, failed: 0, errors: [] };
     }
 
     // B. Purely Local / Offline Mode (when Supabase credentials are not configured)
     if (!isSupabaseConfigured || !supabase) {
       setUserTransactions((prev) => [...sanitizedList, ...prev]);
+      const importedCount = sanitizedList.length;
+      const dupCount = options?.duplicates ?? 0;
+      const invCount = options?.invalid ?? 0;
+      let importMsg = `CSV import completed: ${importedCount} imported.`;
+      if (dupCount > 0 || invCount > 0) {
+        importMsg = `CSV import completed: ${importedCount} imported, ${dupCount} duplicates, ${invCount} invalid.`;
+      }
+      showToast({ type: 'success', title: 'CSV Import Completed', message: importMsg, duration: 6500 });
+      addNotification({
+        type: 'success',
+        title: 'CSV Import Summary',
+        message: importMsg,
+        category: 'CSV Import',
+        metadata: { imported: importedCount, duplicates: dupCount, invalid: invCount }
+      });
+      evaluateBudgetThresholdCrossings({
+        transactions: [...sanitizedList, ...userTransactions],
+        budgets: userBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
       return { success: true, count: sanitizedList.length, imported: sanitizedList.length, failed: 0, errors: [] };
     }
 
@@ -502,6 +590,27 @@ export function FinanceProvider({ children }) {
     if (confirmedCreatedTxns.length > 0) {
       setCloudTransactions((prev) => [...confirmedCreatedTxns, ...prev]);
       setCloudTxnStatus('success');
+
+      const importedCount = confirmedCreatedTxns.length;
+      const dupCount = options?.duplicates ?? 0;
+      const invCount = options?.invalid ?? 0;
+      let importMsg = `CSV import completed: ${importedCount} imported.`;
+      if (dupCount > 0 || invCount > 0) {
+        importMsg = `CSV import completed: ${importedCount} imported, ${dupCount} duplicates, ${invCount} invalid.`;
+      }
+      showToast({ type: 'success', title: 'CSV Import Completed', message: importMsg, duration: 6500 });
+      addNotification({
+        type: 'success',
+        title: 'CSV Import Summary',
+        message: importMsg,
+        category: 'CSV Import',
+        metadata: { imported: importedCount, duplicates: dupCount, invalid: invCount }
+      });
+      evaluateBudgetThresholdCrossings({
+        transactions: [...confirmedCreatedTxns, ...cloudTransactions],
+        budgets: userBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
     }
 
     return {
@@ -512,7 +621,7 @@ export function FinanceProvider({ children }) {
       errors: insertFailures,
       data: confirmedCreatedTxns
     };
-  }, [isSampleMode, user]);
+  }, [isSampleMode, user, cloudTransactions, userBudgets, sampleBudgets, sampleTransactions, userTransactions, settings.activeMonth, showToast, addNotification, evaluateBudgetThresholdCrossings]);
 
   /**
    * Phase 5: Safely migrates existing localStorage transactions to Supabase.
@@ -600,38 +709,67 @@ export function FinanceProvider({ children }) {
     if (result.confirmedTxns && result.confirmedTxns.length > 0) {
       setCloudTransactions((prev) => [...result.confirmedTxns, ...prev]);
       setCloudTxnStatus('success');
+
+      const migMsg = `Migration completed: ${result.migratedCount} transactions synced to cloud.`;
+      showToast({ type: 'success', title: 'Migration Completed', message: migMsg, duration: 6500 });
+      addNotification({
+        type: 'success',
+        title: 'Cloud Migration Summary',
+        message: migMsg,
+        category: 'Migration',
+        metadata: { count: result.migratedCount }
+      });
+      evaluateBudgetThresholdCrossings({
+        transactions: [...result.confirmedTxns, ...cloudTransactions],
+        budgets: userBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
     }
 
     return result;
-  }, [isSampleMode, user]);
+  }, [isSampleMode, user, cloudTransactions, userBudgets, settings.activeMonth, showToast, addNotification, evaluateBudgetThresholdCrossings]);
 
   const updateTransaction = useCallback(async (id, updatedFields) => {
     // A. Demo Mode: Local memory only
     if (isSampleMode) {
-      const updater = (prevList) =>
-        prevList.map((t) => {
-          if (t.id === id) {
-            const merged = { ...t, ...updatedFields };
-            return sanitizeTransaction(merged) || t;
-          }
-          return t;
-        });
-      setSampleTransactions(updater);
-      return { success: true, error: null };
+      let updatedItem = null;
+      const nextList = sampleTransactions.map((t) => {
+        if (t.id === id) {
+          const merged = { ...t, ...updatedFields };
+          updatedItem = sanitizeTransaction(merged) || t;
+          return updatedItem;
+        }
+        return t;
+      });
+      setSampleTransactions(nextList);
+      showToast({ type: 'success', title: 'Transaction Updated', message: 'Transaction updated successfully.' });
+      evaluateBudgetThresholdCrossings({
+        transactions: nextList,
+        budgets: sampleBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
+      return { success: true, data: updatedItem, error: null };
     }
 
     // B. Purely Local / Offline Mode (when Supabase credentials are not configured)
     if (!isSupabaseConfigured || !supabase) {
-      const updater = (prevList) =>
-        prevList.map((t) => {
-          if (t.id === id) {
-            const merged = { ...t, ...updatedFields };
-            return sanitizeTransaction(merged) || t;
-          }
-          return t;
-        });
-      setUserTransactions(updater);
-      return { success: true, error: null };
+      let updatedItem = null;
+      const nextList = userTransactions.map((t) => {
+        if (t.id === id) {
+          const merged = { ...t, ...updatedFields };
+          updatedItem = sanitizeTransaction(merged) || t;
+          return updatedItem;
+        }
+        return t;
+      });
+      setUserTransactions(nextList);
+      showToast({ type: 'success', title: 'Transaction Updated', message: 'Transaction updated successfully.' });
+      evaluateBudgetThresholdCrossings({
+        transactions: nextList,
+        budgets: userBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
+      return { success: true, data: updatedItem, error: null };
     }
 
     // C. Authenticated Personal Mode: Resolve current user session
@@ -646,6 +784,7 @@ export function FinanceProvider({ children }) {
     }
 
     if (!activeUser?.id) {
+      showToast({ type: 'danger', title: 'Update Error', message: 'Unable to update your transaction. Active user session not found.' });
       return {
         success: false,
         error: 'Active user session not found. Please verify you are signed in to update cloud records.'
@@ -657,12 +796,14 @@ export function FinanceProvider({ children }) {
     // Find existing transaction in cloudTransactions
     const existing = cloudTransactions.find((t) => t.id === id);
     if (!existing) {
+      showToast({ type: 'danger', title: 'Update Error', message: 'Transaction not found in cloud records.' });
       return { success: false, error: 'Transaction not found in cloud records.' };
     }
 
     const merged = { ...existing, ...updatedFields };
     const sanitized = sanitizeTransaction(merged);
     if (!sanitized) {
+      showToast({ type: 'danger', title: 'Update Error', message: 'Invalid transaction update payload.' });
       return { success: false, error: 'Invalid transaction update payload.' };
     }
 
@@ -680,43 +821,67 @@ export function FinanceProvider({ children }) {
 
       if (error) {
         console.error('[SpendSense] Supabase update error:', error.message);
+        showToast({ type: 'danger', title: 'Update Error', message: 'Unable to update transaction. Please try again.' });
         return { success: false, error: error.message || 'Failed to update transaction in cloud.' };
       }
 
       if (!data) {
+        showToast({ type: 'danger', title: 'Update Error', message: 'Unable to update transaction. No confirmation data returned.' });
         return { success: false, error: 'No confirmation data returned from database update.' };
       }
 
       // Guard: prevent stale update if user changed/signed out during in-flight call
       const currentLatestUser = userRef.current || user;
       if (currentLatestUser && currentLatestUser.id !== activeUserId) {
+        showToast({ type: 'danger', title: 'Update Error', message: 'User session changed during transaction update.' });
         return { success: false, error: 'User session changed during transaction update.' };
       }
 
       const updatedTxn = fromSupabaseTransactionRow(data, sanitized);
 
       // Confirmed update: update cloud transactions in memory
-      setCloudTransactions((prev) =>
-        prev.map((t) => (t.id === id ? updatedTxn : t))
-      );
+      const nextList = cloudTransactions.map((t) => (t.id === id ? updatedTxn : t));
+      setCloudTransactions(nextList);
+
+      showToast({ type: 'success', title: 'Transaction Updated', message: 'Transaction updated successfully.' });
+      evaluateBudgetThresholdCrossings({
+        transactions: nextList,
+        budgets: userBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
 
       return { success: true, data: updatedTxn, error: null };
     } catch (err) {
       console.error('[SpendSense] Unexpected error during transaction update:', err);
+      showToast({ type: 'danger', title: 'Update Error', message: 'Unable to update your transaction. Please try again.' });
       return { success: false, error: err.message || 'Network error while updating transaction.' };
     }
-  }, [isSampleMode, user, cloudTransactions]);
+  }, [isSampleMode, user, cloudTransactions, sampleTransactions, userTransactions, sampleBudgets, userBudgets, settings.activeMonth, showToast, evaluateBudgetThresholdCrossings]);
 
   const deleteTransaction = useCallback(async (id) => {
     // A. Demo Mode: Local memory only
     if (isSampleMode) {
-      setSampleTransactions((prev) => prev.filter((t) => t.id !== id));
+      const nextList = sampleTransactions.filter((t) => t.id !== id);
+      setSampleTransactions(nextList);
+      showToast({ type: 'info', title: 'Transaction Deleted', message: 'Transaction deleted.' });
+      evaluateBudgetThresholdCrossings({
+        transactions: nextList,
+        budgets: sampleBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
       return { success: true, error: null };
     }
 
     // B. Purely Local / Offline Mode (when Supabase credentials are not configured)
     if (!isSupabaseConfigured || !supabase) {
-      setUserTransactions((prev) => prev.filter((t) => t.id !== id));
+      const nextList = userTransactions.filter((t) => t.id !== id);
+      setUserTransactions(nextList);
+      showToast({ type: 'info', title: 'Transaction Deleted', message: 'Transaction deleted.' });
+      evaluateBudgetThresholdCrossings({
+        transactions: nextList,
+        budgets: userBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
       return { success: true, error: null };
     }
 
@@ -732,6 +897,7 @@ export function FinanceProvider({ children }) {
     }
 
     if (!activeUser?.id) {
+      showToast({ type: 'danger', title: 'Delete Error', message: 'Unable to delete transaction. Active user session not found.' });
       return {
         success: false,
         error: 'Active user session not found. Please verify you are signed in to delete cloud records.'
@@ -750,24 +916,35 @@ export function FinanceProvider({ children }) {
 
       if (error) {
         console.error('[SpendSense] Supabase delete error:', error.message);
+        showToast({ type: 'danger', title: 'Delete Error', message: 'Unable to delete your transaction. Please try again.' });
         return { success: false, error: error.message || 'Failed to delete transaction from cloud.' };
       }
 
       // Guard: prevent stale delete if user changed/signed out during in-flight call
       const currentLatestUser = userRef.current || user;
       if (currentLatestUser && currentLatestUser.id !== activeUserId) {
+        showToast({ type: 'danger', title: 'Delete Error', message: 'User session changed during transaction delete.' });
         return { success: false, error: 'User session changed during transaction delete.' };
       }
 
       // Confirmed delete: only remove from state after database confirms deletion
-      setCloudTransactions((prev) => prev.filter((t) => t.id !== id));
+      const nextList = cloudTransactions.filter((t) => t.id !== id);
+      setCloudTransactions(nextList);
+
+      showToast({ type: 'info', title: 'Transaction Deleted', message: 'Transaction deleted.' });
+      evaluateBudgetThresholdCrossings({
+        transactions: nextList,
+        budgets: userBudgets,
+        activeMonth: settings.activeMonth || '2026-10'
+      });
 
       return { success: true, error: null };
     } catch (err) {
       console.error('[SpendSense] Unexpected error during transaction delete:', err);
+      showToast({ type: 'danger', title: 'Delete Error', message: 'Unable to delete your transaction. Please try again.' });
       return { success: false, error: err.message || 'Network error while deleting transaction.' };
     }
-  }, [isSampleMode, user]);
+  }, [isSampleMode, user, cloudTransactions, sampleTransactions, userTransactions, sampleBudgets, userBudgets, settings.activeMonth, showToast, evaluateBudgetThresholdCrossings]);
 
   // 8. Budget Operations
   const addBudget = useCallback((rawBudget) => {
@@ -1148,6 +1325,11 @@ export function FinanceProvider({ children }) {
     yearlyTotals,
     forecast,
     alerts,
+
+    // Real-Time Notification & Budget Alert Utilities
+    showToast,
+    addNotification,
+    evaluateBudgetThresholdCrossings,
 
     // Portability
     exportDataJSON,

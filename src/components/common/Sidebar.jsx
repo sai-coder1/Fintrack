@@ -28,6 +28,25 @@ export function Sidebar({ isOpen, onClose }) {
   const { currentPage, setCurrentPage } = useFinance();
   const { user, profile, signOut } = useAuth();
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, onClose]);
+
   const displayName = profile?.full_name?.trim() ||
     user?.user_metadata?.full_name?.trim() ||
     (user?.email ? user.email.split('@')[0] : 'User');
@@ -55,7 +74,12 @@ export function Sidebar({ isOpen, onClose }) {
         onClick={onClose}
         aria-hidden="true"
       />
-      <aside className={`app-sidebar ${isOpen ? 'open' : ''}`}>
+      <aside
+        className={`app-sidebar ${isOpen ? 'open' : ''}`}
+        role="dialog"
+        aria-modal={isOpen ? 'true' : undefined}
+        aria-label="Navigation sidebar"
+      >
         <div className="sidebar-header">
           <div className="brand-link">
             <div className="brand-logo-icon">

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useFinance } from '../hooks/useFinance';
 import { useAuth } from '../hooks/useAuth';
+import { useNotifications } from '../context/NotificationContext';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
@@ -33,10 +34,23 @@ import {
   HelpCircle,
   Info,
   ServerOff,
-  Network
+  Network,
+  Bell,
+  BellOff,
+  Volume2
 } from 'lucide-react';
 
 export function SettingsPage() {
+  const {
+    browserSettings,
+    browserPermission,
+    requestBrowserPermission,
+    toggleBrowserNotifications,
+    showToast,
+    clearAllNotifications,
+    notifications
+  } = useNotifications();
+
   const {
     activeMode,
     isSampleMode,
@@ -312,7 +326,224 @@ export function SettingsPage() {
         </form>
       </Card>
 
-      {/* 3. Storage Diagnostics & Workspace Separation */}
+      {/* 3. Real-Time In-App & Browser Notifications */}
+      <Card
+        title="In-App & Browser Notifications"
+        subtitle="Real-time visible pop-up alerts and threshold warnings when spending approaches or exceeds budget limits"
+        action={
+          <Badge
+            variant={
+              browserPermission === 'granted' && browserSettings.browserEnabled
+                ? 'emerald'
+                : browserPermission === 'denied'
+                ? 'rose'
+                : 'neutral'
+            }
+            icon={Bell}
+          >
+            {browserPermission === 'granted' && browserSettings.browserEnabled
+              ? 'Browser Alerts Active'
+              : browserPermission === 'denied'
+              ? 'Browser Alerts Blocked'
+              : 'In-App Alerts Active'}
+          </Badge>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          {/* Thresholds Information Grid */}
+          <div className="grid grid-cols-4" style={{ gap: 'var(--space-3)' }}>
+            <div className="card" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div className="flex items-center gap-1">
+                <span className="notification-unread-pill">75% Usage</span>
+              </div>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>
+                Budget Heads-Up
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Informational toast &amp; notification when 75% limit is crossed.
+              </span>
+            </div>
+
+            <div className="card" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div className="flex items-center gap-1">
+                <span className="notification-unread-pill" style={{ backgroundColor: 'var(--soft-amber-bg)', color: 'var(--warning-amber)' }}>
+                  90% Usage
+                </span>
+              </div>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--warning-amber)', marginTop: 4 }}>
+                Strong Warning
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Urgent warning showing exact remaining rupee balance.
+              </span>
+            </div>
+
+            <div className="card" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div className="flex items-center gap-1">
+                <span className="notification-unread-pill" style={{ backgroundColor: 'var(--soft-amber-bg)', color: 'var(--warning-amber)' }}>
+                  100% Usage
+                </span>
+              </div>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--warning-amber)', marginTop: 4 }}>
+                Budget Reached
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Alert when 100% of category allocation has been spent.
+              </span>
+            </div>
+
+            <div className="card" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div className="flex items-center gap-1">
+                <span className="notification-unread-pill" style={{ backgroundColor: 'var(--soft-rose-bg)', color: 'var(--expense-rose)' }}>
+                  &gt;100% Usage
+                </span>
+              </div>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--expense-rose)', marginTop: 4 }}>
+                Overspending Error
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Immediate danger alert detailing exact overage in ₹.
+              </span>
+            </div>
+          </div>
+
+          {/* Browser Desktop Notifications Row */}
+          <div
+            style={{
+              padding: 'var(--space-4)',
+              backgroundColor: 'var(--bg-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 'var(--space-3)'
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '500px' }}>
+              <div className="flex items-center gap-2">
+                <Volume2 size={16} style={{ color: 'var(--primary-indigo)' }} />
+                <strong style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+                  Browser Desktop Notifications
+                </strong>
+              </div>
+              <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Receive visible system alerts on your desktop when FinTrack detects budget limit crossings.
+                Notifications operate strictly while this application is open in a browser tab.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {browserPermission === 'default' && (
+                <Button variant="primary" size="sm" icon={Bell} onClick={requestBrowserPermission}>
+                  Enable Browser Alerts
+                </Button>
+              )}
+
+              {browserPermission === 'granted' && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={browserSettings.browserEnabled ? 'secondary' : 'primary'}
+                    size="sm"
+                    onClick={() => toggleBrowserNotifications(!browserSettings.browserEnabled)}
+                  >
+                    {browserSettings.browserEnabled ? 'Disable Browser Alerts' : 'Enable Browser Alerts'}
+                  </Button>
+                  <Button
+                    variant="outline-indigo"
+                    size="sm"
+                    onClick={() => {
+                      showToast({
+                        type: 'info',
+                        title: 'Test Notification',
+                        message: 'This is a test notification from FinTrack.'
+                      });
+                      if (browserSettings.browserEnabled && typeof window !== 'undefined' && 'Notification' in window) {
+                        try {
+                          new Notification('FinTrack Test Alert', {
+                            body: 'Browser notifications are working properly while your tab is open!',
+                            icon: '/favicon.svg'
+                          });
+                        } catch (e) {
+                          console.warn(e);
+                        }
+                      }
+                    }}
+                  >
+                    Send Test Alert
+                  </Button>
+                </div>
+              )}
+
+              {browserPermission === 'denied' && (
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--expense-rose)', fontWeight: 600 }}>
+                  Blocked in browser settings
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Test Toast & Clear History Actions */}
+          <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  showToast({
+                    type: 'success',
+                    title: 'Sample Success Toast',
+                    message: 'Transaction added successfully.'
+                  })
+                }
+              >
+                Test Success Toast
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  showToast({
+                    type: 'warning',
+                    title: 'Sample Warning Toast',
+                    message: "You've used 89% of your monthly budget. ₹60 remains."
+                  })
+                }
+              >
+                Test Budget Toast
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  showToast({
+                    type: 'danger',
+                    title: 'Sample Overspending Toast',
+                    message: 'Budget exceeded by ₹40.'
+                  })
+                }
+              >
+                Test Error Toast
+              </Button>
+            </div>
+
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Trash2}
+                onClick={clearAllNotifications}
+                style={{ color: 'var(--expense-rose)' }}
+              >
+                Clear History ({notifications.length})
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* 4. Storage Diagnostics & Workspace Separation */}
       <Card
         title="Client-Side Storage Diagnostics & Modes"
         subtitle="FinTrack persists all data locally using schema-versioned localStorage"
@@ -598,6 +829,7 @@ export function SettingsPage() {
           </div>
 
           <div
+            className="col-span-2-responsive"
             style={{
               padding: 'var(--space-4)',
               backgroundColor: '#fffbeb',
@@ -605,8 +837,7 @@ export function SettingsPage() {
               border: '1px solid #fde68a',
               display: 'flex',
               flexDirection: 'column',
-              gap: 'var(--space-2)',
-              gridColumn: 'span 2'
+              gap: 'var(--space-2)'
             }}
           >
             <div className="flex items-center gap-2" style={{ fontWeight: 700, fontSize: 'var(--text-xs)', color: 'var(--warning-amber)' }}>

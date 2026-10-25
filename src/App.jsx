@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { Sidebar } from './components/common/Sidebar';
 import { Navbar } from './components/common/Navbar';
 import { SampleModeBanner } from './components/common/SampleModeBanner';
+import { ToastContainer } from './components/notifications/ToastContainer';
 import { PROTECTED_PAGES, PUBLIC_PAGES } from './utils/navigation';
 
 // Public & Authentication Views
@@ -144,9 +146,12 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <FinanceProvider>
-        <AppContent />
-      </FinanceProvider>
+      <NotificationProvider>
+        <FinanceProvider>
+          <AppContent />
+          <ToastContainer />
+        </FinanceProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

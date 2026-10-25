@@ -20,7 +20,9 @@ import {
   PieChart,
   ArrowDownLeft,
   ArrowUpRight,
-  ChevronRight
+  ChevronRight,
+  Menu,
+  X
 } from 'lucide-react';
 
 export function LandingPage() {
@@ -28,6 +30,7 @@ export function LandingPage() {
   const { user } = useAuth();
   const [legalModalOpen, setLegalModalOpen] = useState(false);
   const [legalModalType, setLegalModalType] = useState('privacy');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const openLegal = (type) => {
     setLegalModalType(type);
@@ -98,13 +101,14 @@ export function LandingPage() {
                 iconPosition="right"
                 onClick={() => setCurrentPage('dashboard')}
               >
-                Go to Dashboard
+                Dashboard
               </Button>
             ) : (
               <>
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="hide-on-mobile"
                   onClick={handleSignIn}
                 >
                   Sign In
@@ -120,9 +124,82 @@ export function LandingPage() {
                 </Button>
               </>
             )}
+            <button
+              type="button"
+              className="landing-mobile-menu-btn"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Mobile Slide-Down Navigation Menu */}
+      {mobileMenuOpen && (
+        <div className="landing-mobile-nav-drawer" role="navigation" aria-label="Mobile Navigation">
+          <button
+            type="button"
+            className="landing-mobile-nav-link"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              scrollToSection('features');
+            }}
+          >
+            Features
+          </button>
+          <button
+            type="button"
+            className="landing-mobile-nav-link"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              scrollToSection('how-it-works');
+            }}
+          >
+            How It Works
+          </button>
+          <div className="landing-mobile-nav-divider" />
+          {user ? (
+            <Button
+              variant="primary"
+              size="md"
+              style={{ width: '100%' }}
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setCurrentPage('dashboard');
+              }}
+            >
+              Go to Dashboard
+            </Button>
+          ) : (
+            <div className="flex flex-col gap-2" style={{ width: '100%' }}>
+              <Button
+                variant="secondary"
+                size="md"
+                style={{ width: '100%' }}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleSignIn();
+                }}
+              >
+                Sign In
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                style={{ width: '100%' }}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleGetStarted();
+                }}
+              >
+                Create Account Free
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 2. Hero Section */}
       <section className="landing-hero">
@@ -246,7 +323,7 @@ export function LandingPage() {
               </div>
 
               {/* Feature highlight mini preview */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 'var(--space-4)' }}>
+              <div className="landing-mockup-grid">
                 <div className="card" style={{ padding: 'var(--space-4)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
                     <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>

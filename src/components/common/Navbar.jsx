@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Menu, Calendar, Coins, Sparkles, Plus, AlertTriangle, User as UserIcon } from 'lucide-react';
 import { Badge } from './Badge';
 import { Button } from './Button';
+import { NotificationCenter } from '../notifications/NotificationCenter';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -118,6 +119,9 @@ export function Navbar({ onOpenMobileMenu }) {
           </Badge>
         )}
 
+        {/* Real-Time In-App Notification Center */}
+        <NotificationCenter />
+
         {/* Primary Add Transaction Action */}
         <Button
           variant="primary"
@@ -125,7 +129,7 @@ export function Navbar({ onOpenMobileMenu }) {
           icon={Plus}
           onClick={() => openAddTxnModal()}
         >
-          <span>Add Transaction</span>
+          <span>Add<span className="hide-on-mobile"> Transaction</span></span>
         </Button>
       </div>
     </header>

@@ -227,8 +227,8 @@ export function DashboardPage() {
 
       {/* 3. Cash Flow Trajectory & Category Breakdown Charts */}
       <div className="grid grid-cols-3">
-        {/* Cash Flow Running Balance Area Chart (Spans 2 columns) */}
-        <div style={{ gridColumn: 'span 2' }}>
+        {/* Cash Flow Running Balance Area Chart (Spans 2 columns on desktop, 1 on mobile) */}
+        <div className="col-span-2-responsive">
           <Card
             title="October Cash Flow Runway"
             subtitle="Running net balance progression through the month"

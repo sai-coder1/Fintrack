@@ -261,7 +261,7 @@ export function TransactionsPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-6" style={{ fontSize: 'var(--text-xs)' }}>
+        <div className="flex items-center gap-4 flex-wrap" style={{ fontSize: 'var(--text-xs)' }}>
           <div className="flex items-center gap-2">
             <span style={{ color: 'var(--text-muted)' }}>Filtered Inflows:</span>
             <span className="amount-cell amount-income">+{formatINR(filterStats.income)}</span>
