@@ -27,17 +27,46 @@ import {
 } from '../utils/calculations';
 import { calculateMonthEndForecast } from '../utils/forecasting';
 import { generateActionableAlerts } from '../utils/alerts';
+import { useAuth } from '../hooks/useAuth';
+import { getPageFromPath, getPathFromPage } from '../utils/navigation';
 
 const FinanceContext = createContext(null);
 
 export function FinanceProvider({ children }) {
+  const { user } = useAuth();
+
   // Run legacy storage migration once
   useEffect(() => {
     migrateLegacyStorage();
   }, []);
 
-  // 1. Navigation State
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  // 1. Navigation State with URL & History synchronization
+  const [currentPage, setCurrentPageRaw] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const page = getPageFromPath(window.location.pathname, window.location.hash);
+      return page;
+    }
+    return 'root';
+  });
+
+  const setCurrentPage = useCallback((newPage) => {
+    setCurrentPageRaw(newPage);
+    if (typeof window !== 'undefined') {
+      const targetPath = getPathFromPage(newPage);
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, '', targetPath);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const page = getPageFromPath(window.location.pathname, window.location.hash);
+      setCurrentPageRaw(page);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // 2. Active Mode: 'sample' | 'personal'
   const [activeMode, setActiveMode] = useState(() => {
@@ -102,6 +131,17 @@ export function FinanceProvider({ children }) {
   useEffect(() => {
     safeSet(STORAGE_KEYS.SETTINGS, settings);
   }, [settings]);
+
+  // Sync Supabase Auth user full name into settings if available
+  useEffect(() => {
+    const fullName = user?.user_metadata?.full_name?.trim();
+    if (fullName && (!settings.displayName || settings.displayName === 'Sai')) {
+      setSettings((prev) => ({
+        ...prev,
+        displayName: fullName
+      }));
+    }
+  }, [user]);
 
   useEffect(() => {
     safeSet(STORAGE_KEYS.USER_TRANSACTIONS, userTransactions);

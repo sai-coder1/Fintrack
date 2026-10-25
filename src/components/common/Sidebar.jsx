@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFinance } from '../../hooks/useFinance';
+import { useAuth } from '../../hooks/useAuth';
 import {
   LayoutDashboard,
   Receipt,
@@ -9,6 +10,7 @@ import {
   Sparkles,
   Settings,
   ShieldCheck,
+  LogOut,
   X
 } from 'lucide-react';
 
@@ -24,9 +26,18 @@ const NAV_ITEMS = [
 
 export function Sidebar({ isOpen, onClose }) {
   const { currentPage, setCurrentPage } = useFinance();
+  const { user, signOut } = useAuth();
 
   const handleNavClick = (pageId) => {
     setCurrentPage(pageId);
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setCurrentPage('landing');
     if (onClose) {
       onClose();
     }
@@ -82,6 +93,77 @@ export function Sidebar({ isOpen, onClose }) {
         </nav>
 
         <div className="sidebar-footer">
+          {user && (
+            <div
+              style={{
+                marginBottom: 'var(--space-3)',
+                padding: 'var(--space-2) var(--space-3)',
+                backgroundColor: 'var(--bg-subtle)',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 'var(--space-2)',
+                border: '1px solid var(--border-subtle)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: 0, overflow: 'hidden' }}>
+                <div
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--soft-indigo-bg)',
+                    color: 'var(--primary-indigo)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 700
+                  }}
+                >
+                  {(user.user_metadata?.full_name || user.email || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
+                    {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.6875rem',
+                      color: 'var(--text-muted)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
+                    {user.email}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-icon-only"
+                onClick={handleSignOut}
+                title="Sign Out"
+                aria-label="Sign out of SpendSense"
+                style={{ color: 'var(--expense-rose)', flexShrink: 0 }}
+              >
+                <LogOut size={15} />
+              </button>
+            </div>
+          )}
+
           <div className="sidebar-card-helper">
             <div className="flex items-center gap-2" style={{ color: 'var(--primary-indigo)', fontWeight: 600, fontSize: 'var(--text-xs)' }}>
               <ShieldCheck size={14} />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useFinance } from '../../hooks/useFinance';
-import { Menu, Calendar, Coins, Sparkles, Plus, AlertTriangle } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
+import { Menu, Calendar, Coins, Sparkles, Plus, AlertTriangle, User as UserIcon } from 'lucide-react';
 import { Badge } from './Badge';
 import { Button } from './Button';
 
@@ -52,6 +53,7 @@ const PAGE_METADATA = {
 
 export function Navbar({ onOpenMobileMenu }) {
   const { currentPage, isSampleMode, openAddTxnModal, activeMonth, alerts = [], setCurrentPage } = useFinance();
+  const { user } = useAuth();
   const currentMeta = PAGE_METADATA[currentPage] || {
     title: 'SpendSense',
     subtitle: 'Everyday Money Decision Assistant'
@@ -101,6 +103,13 @@ export function Navbar({ onOpenMobileMenu }) {
         <Badge variant="indigo" icon={Coins} className="hide-on-mobile">
           INR (₹)
         </Badge>
+
+        {/* Authenticated User Badge */}
+        {user && (
+          <Badge variant="neutral" icon={UserIcon} className="hide-on-mobile">
+            {user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0]}
+          </Badge>
+        )}
 
         {/* Sample Mode Indicator */}
         {isSampleMode && (
