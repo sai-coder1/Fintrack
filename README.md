@@ -310,7 +310,7 @@ Do not include credentials, personal financial records, or other sensitive data 
 
 ## 📄 License
 
-Add a `LICENSE` file and specify the license you have chosen for this project. Do not label the project as MIT-licensed until that license has been added and confirmed.
+FinTrack is licensed under the [MIT License](LICENSE).
 
 ---
 
